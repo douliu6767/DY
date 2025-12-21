@@ -330,13 +330,24 @@
 
     <div class="container">
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('nodes')">节点管理</button>
-            <button class="tab" onclick="switchTab('subscriptions')">订阅管理</button>
+            <button class="tab active" onclick="switchTab('subscriptions')">订阅管理</button>
+            <button class="tab" onclick="switchTab('nodes')">节点管理</button>
             <button class="tab" onclick="switchTab('settings')">系统设置</button>
         </div>
 
+        <!-- Subscriptions Tab -->
+        <div id="subscriptionsTab" class="tab-content active">
+            <div class="card">
+                <h2>
+                    订阅列表
+                    <button class="btn" onclick="openSubscriptionModal()">+ 创建订阅</button>
+                </h2>
+                <div id="subscriptionsTable"></div>
+            </div>
+        </div>
+
         <!-- Nodes Tab -->
-        <div id="nodesTab" class="tab-content active">
+        <div id="nodesTab" class="tab-content">
             <div class="card">
                 <h2>
                     节点列表
@@ -346,17 +357,6 @@
                     </div>
                 </h2>
                 <div id="nodesTable"></div>
-            </div>
-        </div>
-
-        <!-- Subscriptions Tab -->
-        <div id="subscriptionsTab" class="tab-content">
-            <div class="card">
-                <h2>
-                    订阅列表
-                    <button class="btn" onclick="openSubscriptionModal()">+ 创建订阅</button>
-                </h2>
-                <div id="subscriptionsTable"></div>
             </div>
         </div>
 
@@ -505,6 +505,20 @@
                 <div class="form-group">
                     <label>到期时间 (可选)</label>
                     <input type="datetime-local" id="subscriptionExpires">
+                </div>
+                <div class="form-group">
+                    <label>总流量限制 (可选)</label>
+                    <select id="subscriptionTrafficLimit">
+                        <option value="10737418240">10 GB</option>
+                        <option value="53687091200">50 GB</option>
+                        <option value="107374182400" selected>100 GB</option>
+                        <option value="214748364800">200 GB</option>
+                        <option value="322122547200">300 GB</option>
+                        <option value="536870912000">500 GB</option>
+                        <option value="1099511627776">1 TB</option>
+                        <option value="2199023255552">2 TB</option>
+                        <option value="10995116277760">10 TB</option>
+                    </select>
                 </div>
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button type="submit" class="btn" style="flex: 1;">保存</button>
@@ -727,6 +741,7 @@
                         <tr>
                             <th>名称</th>
                             <th>节点数量</th>
+                            <th>流量限制</th>
                             <th>到期时间</th>
                             <th>订阅链接</th>
                             <th>操作</th>
@@ -735,11 +750,14 @@
                     <tbody>
                         ${allSubscriptions.map(sub => {
                             const expireText = sub.expiresAt ? new Date(sub.expiresAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '永久';
+                            const trafficGB = Math.round((sub.trafficLimit || 107374182400) / 1073741824);
+                            const trafficText = trafficGB >= 1024 ? `${(trafficGB / 1024).toFixed(1)} TB` : `${trafficGB} GB`;
                             const subLink = `${window.location.origin}/subscription/${sub.id}`;
                             return `
                                 <tr>
                                     <td>${sub.name}</td>
                                     <td>${sub.nodeIds.length}</td>
+                                    <td>${trafficText}</td>
                                     <td>${expireText}</td>
                                     <td>
                                         <button class="btn btn-small" onclick="copyToClipboard('${subLink}')">复制链接</button>
@@ -792,6 +810,11 @@
                         .toISOString().slice(0, 16);
                     document.getElementById('subscriptionExpires').value = localDateTime;
                 }
+                
+                // Set traffic limit
+                if (sub.trafficLimit) {
+                    document.getElementById('subscriptionTrafficLimit').value = sub.trafficLimit.toString();
+                }
             } else {
                 document.getElementById('subscriptionModalTitle').textContent = '创建订阅';
                 form.reset();
@@ -836,7 +859,8 @@
             const subscriptionData = {
                 name: document.getElementById('subscriptionName').value,
                 nodeIds: selectedNodes,
-                expiresAt: document.getElementById('subscriptionExpires').value || null
+                expiresAt: document.getElementById('subscriptionExpires').value || null,
+                trafficLimit: parseInt(document.getElementById('subscriptionTrafficLimit').value) || 107374182400
             };
 
             const subscriptionId = document.getElementById('subscriptionId').value;
@@ -973,8 +997,8 @@
         });
 
         // Initialize
-        loadNodes();
         loadSubscriptions();
+        loadNodes();
         loadSettings();
     </script>
 </body>

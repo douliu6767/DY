@@ -88,6 +88,7 @@ function initializeDatabase() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       expires_at TEXT,
+      traffic_limit INTEGER DEFAULT 107374182400,
       created_at TEXT NOT NULL
     );
     
@@ -99,6 +100,13 @@ function initializeDatabase() {
       FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
     );
   `);
+  
+  // Add traffic_limit column if it doesn't exist (for database migration)
+  try {
+    db.exec('ALTER TABLE subscriptions ADD COLUMN traffic_limit INTEGER DEFAULT 107374182400');
+  } catch (error) {
+    // Column already exists, ignore error
+  }
   
   // Migrate from JSON files if they exist
   migrateFromJSON();
@@ -488,6 +496,7 @@ app.get('/api/subscriptions', authenticateToken, (req, res) => {
       name: sub.name,
       nodeIds: nodeIds,
       expiresAt: sub.expires_at,
+      trafficLimit: sub.traffic_limit || 107374182400,
       createdAt: sub.created_at
     };
   });
@@ -501,11 +510,12 @@ app.post('/api/subscriptions', authenticateToken, (req, res) => {
     name: req.body.name,
     nodeIds: req.body.nodeIds || [],
     expiresAt: req.body.expiresAt || null,
+    trafficLimit: req.body.trafficLimit || 107374182400, // Default 100GB in bytes
     createdAt: getBeijingTime()
   };
   
-  db.prepare('INSERT INTO subscriptions (id, name, expires_at, created_at) VALUES (?, ?, ?, ?)').run(
-    newSubscription.id, newSubscription.name, newSubscription.expiresAt, newSubscription.createdAt
+  db.prepare('INSERT INTO subscriptions (id, name, expires_at, traffic_limit, created_at) VALUES (?, ?, ?, ?, ?)').run(
+    newSubscription.id, newSubscription.name, newSubscription.expiresAt, newSubscription.trafficLimit, newSubscription.createdAt
   );
   
   const insertSubNode = db.prepare('INSERT INTO subscription_nodes (subscription_id, node_id) VALUES (?, ?)');
@@ -523,9 +533,10 @@ app.put('/api/subscriptions/:id', authenticateToken, (req, res) => {
     return res.status(404).json({ error: 'Subscription not found' });
   }
   
-  db.prepare('UPDATE subscriptions SET name = ?, expires_at = ? WHERE id = ?').run(
+  db.prepare('UPDATE subscriptions SET name = ?, expires_at = ?, traffic_limit = ? WHERE id = ?').run(
     req.body.name || subscription.name,
     req.body.expiresAt !== undefined ? req.body.expiresAt : subscription.expires_at,
+    req.body.trafficLimit !== undefined ? req.body.trafficLimit : (subscription.traffic_limit || 107374182400),
     req.params.id
   );
   
@@ -548,6 +559,7 @@ app.put('/api/subscriptions/:id', authenticateToken, (req, res) => {
     name: updatedSub.name,
     nodeIds: nodeIds,
     expiresAt: updatedSub.expires_at,
+    trafficLimit: updatedSub.traffic_limit || 107374182400,
     createdAt: updatedSub.created_at
   });
 });
@@ -635,13 +647,18 @@ app.get('/subscription/:id', (req, res) => {
     .all(req.params.id)
     .map(row => row.node_id);
   
+  // Get traffic limit from subscription (default 100GB if not set)
+  const trafficLimit = subscription.traffic_limit || 107374182400;
+  const expireTimestamp = subscription.expires_at ? Math.floor(new Date(subscription.expires_at).getTime() / 1000) : 0;
+  
   if (nodeIds.length === 0) {
     // Return empty subscription if no nodes
     const content = '';
     const base64Content = Buffer.from(content).toString('base64');
     
     res.set('Content-Type', 'text/plain; charset=utf-8');
-    res.set('Subscription-Userinfo', `upload=0; download=0; total=10737418240; expire=${subscription.expires_at ? Math.floor(new Date(subscription.expires_at).getTime() / 1000) : 0}`);
+    res.set('Subscription-Userinfo', `upload=0; download=0; total=${trafficLimit}; expire=${expireTimestamp}`);
+    res.set('Profile-Update-Interval', '24');
     res.send(base64Content);
     return;
   }
@@ -663,7 +680,8 @@ app.get('/subscription/:id', (req, res) => {
   const base64Content = Buffer.from(content).toString('base64');
   
   res.set('Content-Type', 'text/plain; charset=utf-8');
-  res.set('Subscription-Userinfo', `upload=0; download=0; total=10737418240; expire=${subscription.expires_at ? Math.floor(new Date(subscription.expires_at).getTime() / 1000) : 0}`);
+  res.set('Subscription-Userinfo', `upload=0; download=0; total=${trafficLimit}; expire=${expireTimestamp}`);
+  res.set('Profile-Update-Interval', '24');
   res.send(base64Content);
 });
 
