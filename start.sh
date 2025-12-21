@@ -62,7 +62,16 @@ fi
 
 # 设置环境变量
 export PORT=${PORT:-3000}
-export JWT_SECRET=${JWT_SECRET:-$(openssl rand -hex 32 2>/dev/null || cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 64 | head -n 1)}
+
+# Generate a secure JWT secret if not already set
+if [ -z "$JWT_SECRET" ]; then
+    if command -v openssl &> /dev/null; then
+        export JWT_SECRET=$(openssl rand -hex 32)
+    else
+        # Fallback to reading from urandom if openssl is not available
+        export JWT_SECRET=$(head -c 32 /dev/urandom | xxd -p -c 32)
+    fi
+fi
 
 echo "配置信息:"
 echo "- 端口: $PORT"

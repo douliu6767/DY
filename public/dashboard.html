@@ -537,6 +537,10 @@
         let currentEditingSubscriptionId = null;
         let allNodes = [];
         let allSubscriptions = [];
+        
+        // Constants
+        const DEFAULT_TRAFFIC_LIMIT_BYTES = 107374182400; // 100GB in bytes
+        const BYTES_PER_GB = 1073741824; // 1GB in bytes
 
         // Check authentication
         if (!token) {
@@ -750,7 +754,7 @@
                     <tbody>
                         ${allSubscriptions.map(sub => {
                             const expireText = sub.expiresAt ? new Date(sub.expiresAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '永久';
-                            const trafficGB = Math.round((sub.trafficLimit || 107374182400) / 1073741824);
+                            const trafficGB = Math.round((sub.trafficLimit || DEFAULT_TRAFFIC_LIMIT_BYTES) / BYTES_PER_GB);
                             const trafficText = trafficGB >= 1024 ? `${(trafficGB / 1024).toFixed(1)} TB` : `${trafficGB} GB`;
                             const subLink = `${window.location.origin}/subscription/${sub.id}`;
                             return `
@@ -860,7 +864,7 @@
                 name: document.getElementById('subscriptionName').value,
                 nodeIds: selectedNodes,
                 expiresAt: document.getElementById('subscriptionExpires').value || null,
-                trafficLimit: parseInt(document.getElementById('subscriptionTrafficLimit').value) || 107374182400
+                trafficLimit: parseInt(document.getElementById('subscriptionTrafficLimit').value) || DEFAULT_TRAFFIC_LIMIT_BYTES
             };
 
             const subscriptionId = document.getElementById('subscriptionId').value;

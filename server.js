@@ -11,6 +11,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || require('crypto').randomBytes(32).toString('hex');
 
+// Constants
+const DEFAULT_TRAFFIC_LIMIT_BYTES = 107374182400; // 100GB in bytes
+
 // Data storage paths
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'database.db');
@@ -88,7 +91,7 @@ function initializeDatabase() {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       expires_at TEXT,
-      traffic_limit INTEGER DEFAULT 107374182400,
+      traffic_limit INTEGER DEFAULT ${DEFAULT_TRAFFIC_LIMIT_BYTES},
       created_at TEXT NOT NULL
     );
     
@@ -103,9 +106,12 @@ function initializeDatabase() {
   
   // Add traffic_limit column if it doesn't exist (for database migration)
   try {
-    db.exec('ALTER TABLE subscriptions ADD COLUMN traffic_limit INTEGER DEFAULT 107374182400');
+    db.exec(`ALTER TABLE subscriptions ADD COLUMN traffic_limit INTEGER DEFAULT ${DEFAULT_TRAFFIC_LIMIT_BYTES}`);
   } catch (error) {
-    // Column already exists, ignore error
+    // Column already exists or other migration issue - check if it's the expected error
+    if (!error.message.includes('duplicate column name')) {
+      console.warn('Database migration warning:', error.message);
+    }
   }
   
   // Migrate from JSON files if they exist
@@ -496,7 +502,7 @@ app.get('/api/subscriptions', authenticateToken, (req, res) => {
       name: sub.name,
       nodeIds: nodeIds,
       expiresAt: sub.expires_at,
-      trafficLimit: sub.traffic_limit || 107374182400,
+      trafficLimit: sub.traffic_limit || DEFAULT_TRAFFIC_LIMIT_BYTES,
       createdAt: sub.created_at
     };
   });
@@ -510,7 +516,7 @@ app.post('/api/subscriptions', authenticateToken, (req, res) => {
     name: req.body.name,
     nodeIds: req.body.nodeIds || [],
     expiresAt: req.body.expiresAt || null,
-    trafficLimit: req.body.trafficLimit || 107374182400, // Default 100GB in bytes
+    trafficLimit: req.body.trafficLimit || DEFAULT_TRAFFIC_LIMIT_BYTES,
     createdAt: getBeijingTime()
   };
   
@@ -536,7 +542,7 @@ app.put('/api/subscriptions/:id', authenticateToken, (req, res) => {
   db.prepare('UPDATE subscriptions SET name = ?, expires_at = ?, traffic_limit = ? WHERE id = ?').run(
     req.body.name || subscription.name,
     req.body.expiresAt !== undefined ? req.body.expiresAt : subscription.expires_at,
-    req.body.trafficLimit !== undefined ? req.body.trafficLimit : (subscription.traffic_limit || 107374182400),
+    req.body.trafficLimit !== undefined ? req.body.trafficLimit : (subscription.traffic_limit || DEFAULT_TRAFFIC_LIMIT_BYTES),
     req.params.id
   );
   
@@ -559,7 +565,7 @@ app.put('/api/subscriptions/:id', authenticateToken, (req, res) => {
     name: updatedSub.name,
     nodeIds: nodeIds,
     expiresAt: updatedSub.expires_at,
-    trafficLimit: updatedSub.traffic_limit || 107374182400,
+    trafficLimit: updatedSub.traffic_limit || DEFAULT_TRAFFIC_LIMIT_BYTES,
     createdAt: updatedSub.created_at
   });
 });
@@ -647,8 +653,8 @@ app.get('/subscription/:id', (req, res) => {
     .all(req.params.id)
     .map(row => row.node_id);
   
-  // Get traffic limit from subscription (default 100GB if not set)
-  const trafficLimit = subscription.traffic_limit || 107374182400;
+  // Get traffic limit from subscription
+  const trafficLimit = subscription.traffic_limit || DEFAULT_TRAFFIC_LIMIT_BYTES;
   const expireTimestamp = subscription.expires_at ? Math.floor(new Date(subscription.expires_at).getTime() / 1000) : 0;
   
   if (nodeIds.length === 0) {
