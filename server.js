@@ -20,6 +20,29 @@ const SUBSCRIPTIONS_FILE = path.join(DATA_DIR, 'subscriptions.json');
 app.use(express.json());
 app.use(express.static('public'));
 
+// Simple in-memory rate limiting for login attempts
+const loginAttempts = new Map();
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
+
+function rateLimitLogin(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  
+  if (loginAttempts.has(ip)) {
+    const attempts = loginAttempts.get(ip);
+    const recentAttempts = attempts.filter(time => now - time < LOCKOUT_DURATION);
+    
+    if (recentAttempts.length >= MAX_LOGIN_ATTEMPTS) {
+      return res.status(429).json({ error: '登录尝试次数过多，请15分钟后再试' });
+    }
+    
+    loginAttempts.set(ip, recentAttempts);
+  }
+  
+  next();
+}
+
 // Initialize data directory and files
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -83,20 +106,26 @@ function authenticateToken(req, res, next) {
 }
 
 // Auth routes
-app.post('/api/login', (req, res) => {
+app.post('/api/login', rateLimitLogin, (req, res) => {
   const { username, password } = req.body;
   
   const users = readJSON(USERS_FILE);
   const user = users.find(u => u.username === username);
   
   if (!user) {
+    recordLoginAttempt(req);
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   
   const validPassword = bcrypt.compareSync(password, user.password);
   if (!validPassword) {
+    recordLoginAttempt(req);
     return res.status(401).json({ error: 'Invalid credentials' });
   }
+  
+  // Successful login - clear attempts
+  const ip = req.ip || req.connection.remoteAddress;
+  loginAttempts.delete(ip);
   
   const token = jwt.sign(
     { id: user.id, username: user.username, role: user.role },
@@ -106,6 +135,19 @@ app.post('/api/login', (req, res) => {
   
   res.json({ token, username: user.username });
 });
+
+function recordLoginAttempt(req) {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  
+  if (!loginAttempts.has(ip)) {
+    loginAttempts.set(ip, []);
+  }
+  
+  const attempts = loginAttempts.get(ip);
+  attempts.push(now);
+  loginAttempts.set(ip, attempts);
+}
 
 // Node management routes
 app.get('/api/nodes', authenticateToken, (req, res) => {
