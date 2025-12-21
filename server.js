@@ -144,14 +144,14 @@ function migrateFromJSON() {
     try {
       const nodes = JSON.parse(fs.readFileSync(NODES_FILE, 'utf8'));
       const insertNode = db.prepare(`INSERT OR IGNORE INTO nodes 
-        (id, type, name, server, port, uuid, alter_id, network, tls, host, path, sni, header_type, encryption, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+        (id, type, name, server, port, uuid, alter_id, network, tls, host, path, sni, header_type, encryption, raw_link, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
       for (const node of nodes) {
         insertNode.run(
           node.id, node.type, node.name, node.server, node.port, node.uuid,
           node.alterId || 0, node.network || 'tcp', node.tls || 'none',
           node.host || null, node.path || null, node.sni || null,
-          node.headerType || null, node.encryption || null, node.createdAt || getBeijingTime()
+          node.headerType || null, node.encryption || null, node.rawLink || null, node.createdAt || getBeijingTime()
         );
       }
       fs.renameSync(NODES_FILE, NODES_FILE + '.migrated');
@@ -422,11 +422,16 @@ function parseVmessLink(link) {
   const jsonData = Buffer.from(base64Data, 'base64').toString('utf8');
   const config = JSON.parse(jsonData);
   
+  const port = parseInt(config.port);
+  if (isNaN(port) || port < 1 || port > 65535) {
+    throw new Error('Invalid port number in vmess link');
+  }
+  
   return {
     type: 'vmess',
     name: config.ps || 'Imported VMess',
     server: config.add,
-    port: parseInt(config.port),
+    port: port,
     uuid: config.id,
     alterId: parseInt(config.aid) || 0,
     network: config.net || 'tcp',
@@ -445,6 +450,11 @@ function parseVlessLink(link) {
   const uuid = url.username;
   const server = url.hostname;
   const port = parseInt(url.port);
+  
+  if (isNaN(port) || port < 1 || port > 65535) {
+    throw new Error('Invalid port number in vless link');
+  }
+  
   const name = decodeURIComponent(url.hash.substring(1)) || 'Imported VLess';
   
   const params = new URLSearchParams(url.search);
@@ -624,6 +634,17 @@ app.get('/subscription/:id', (req, res) => {
   const nodeIds = db.prepare('SELECT node_id FROM subscription_nodes WHERE subscription_id = ?')
     .all(req.params.id)
     .map(row => row.node_id);
+  
+  if (nodeIds.length === 0) {
+    // Return empty subscription if no nodes
+    const content = '';
+    const base64Content = Buffer.from(content).toString('base64');
+    
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.set('Subscription-Userinfo', `upload=0; download=0; total=10737418240; expire=${subscription.expires_at ? Math.floor(new Date(subscription.expires_at).getTime() / 1000) : 0}`);
+    res.send(base64Content);
+    return;
+  }
   
   const nodes = db.prepare(`SELECT * FROM nodes WHERE id IN (${nodeIds.map(() => '?').join(',')})`).all(...nodeIds);
   
