@@ -319,6 +319,23 @@
             display: block;
         }
 
+        .error-message-toast {
+            background: #f44336;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: none;
+            animation: slideIn 0.3s;
+        }
+
+        .error-message-toast.show {
+            display: block;
+        }
+
         @keyframes slideIn {
             from {
                 transform: translateX(100%);
@@ -693,6 +710,7 @@
     </div>
 
     <div id="successMessage" class="success-message"></div>
+    <div id="errorMessage" class="error-message-toast"></div>
 
     <script>
         const API_BASE = '';
@@ -706,6 +724,7 @@
         const DEFAULT_TRAFFIC_LIMIT_BYTES = 107374182400; // 100GB in bytes
         const BYTES_PER_GB = 1073741824; // 1GB in bytes
         const MILLISECONDS_PER_MINUTE = 60000; // Milliseconds in a minute
+        const MILLISECONDS_PER_DAY = 86400000; // Milliseconds in a day (24 * 60 * 60 * 1000)
 
         // Check authentication
         if (!token) {
@@ -972,12 +991,12 @@
         function convertDaysToExpiry() {
             const days = parseInt(document.getElementById('subscriptionDays').value);
             if (!days || days <= 0) {
-                alert('请输入有效的天数（大于0）');
+                showError('请输入有效的天数（大于0）');
                 return;
             }
             
             const now = new Date();
-            const expiryDate = new Date(now.getTime() + days * 24 * 60 * MILLISECONDS_PER_MINUTE);
+            const expiryDate = new Date(now.getTime() + days * MILLISECONDS_PER_DAY);
             
             // Convert to local datetime string format
             const localDateTime = toDatetimeLocalFormat(expiryDate);
@@ -1074,7 +1093,7 @@
             const selectedNodes = Array.from(checkedBoxes).map(checkbox => checkbox.value);
             
             if (selectedNodes.length === 0) {
-                alert('请至少选择一个节点');
+                showError('请至少选择一个节点');
                 return;
             }
 
@@ -1160,7 +1179,12 @@
 
         // Show error message
         function showError(message) {
-            alert(message);
+            const errorMsg = document.getElementById('errorMessage');
+            errorMsg.textContent = message;
+            errorMsg.classList.add('show');
+            setTimeout(() => {
+                errorMsg.classList.remove('show');
+            }, 3000);
         }
 
         // Show success message
