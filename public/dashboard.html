@@ -354,7 +354,7 @@
                 width: 80px;
             }
 
-            .sidebar-nav .tab span:last-child {
+            .sidebar-nav .tab .tab-label {
                 display: none;
             }
 
@@ -398,17 +398,17 @@
     <div class="main-layout">
         <div class="sidebar">
             <nav class="sidebar-nav">
-                <button class="tab active" onclick="switchTab('subscriptions')">
-                    <span>📋</span>
-                    <span>订阅管理</span>
+                <button class="tab active" onclick="switchTab('subscriptions')" data-tab="subscriptions">
+                    <span class="tab-icon">📋</span>
+                    <span class="tab-label">订阅管理</span>
                 </button>
-                <button class="tab" onclick="switchTab('nodes')">
-                    <span>🌐</span>
-                    <span>节点管理</span>
+                <button class="tab" onclick="switchTab('nodes')" data-tab="nodes">
+                    <span class="tab-icon">🌐</span>
+                    <span class="tab-label">节点管理</span>
                 </button>
-                <button class="tab" onclick="switchTab('settings')">
-                    <span>⚙️</span>
-                    <span>系统设置</span>
+                <button class="tab" onclick="switchTab('settings')" data-tab="settings">
+                    <span class="tab-icon">⚙️</span>
+                    <span class="tab-label">系统设置</span>
                 </button>
             </nav>
         </div>
@@ -661,12 +661,11 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             
-            // Find and activate the correct tab button
-            document.querySelectorAll('.tab').forEach(t => {
-                if (t.onclick && t.onclick.toString().includes(`'${tab}'`)) {
-                    t.classList.add('active');
-                }
-            });
+            // Find and activate the correct tab button using data attribute
+            const activeTab = document.querySelector(`.tab[data-tab="${tab}"]`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
             document.getElementById(tab + 'Tab').classList.add('active');
         }
 
