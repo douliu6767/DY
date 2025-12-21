@@ -1144,19 +1144,20 @@
 
         // Fallback copy method
         function fallbackCopyTextToClipboard(text) {
-            // Basic sanitization - ensure text is a string
-            const sanitizedText = String(text || '');
+            // Ensure text is a string and provide default if invalid
+            const sanitizedText = typeof text === 'string' ? text : String(text || '');
             
             const textArea = document.createElement("textarea");
             textArea.value = sanitizedText;
             textArea.style.position = "fixed";
             textArea.style.top = "-9999px";
             textArea.style.left = "-9999px";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
             
             try {
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                
                 const successful = document.execCommand('copy');
                 if (successful) {
                     showSuccess('链接已复制到剪贴板');
@@ -1166,13 +1167,9 @@
             } catch (err) {
                 showError('复制失败，请手动复制');
             } finally {
-                // Safely remove the textarea
-                try {
-                    if (textArea.parentNode) {
-                        document.body.removeChild(textArea);
-                    }
-                } catch (removeErr) {
-                    // Ignore removal errors
+                // Remove the textarea element
+                if (textArea.parentNode) {
+                    document.body.removeChild(textArea);
                 }
             }
         }
