@@ -4,10 +4,11 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+const JWT_SECRET = process.env.JWT_SECRET || require('crypto').randomBytes(32).toString('hex');
 
 // Data storage paths
 const DATA_DIR = path.join(__dirname, 'data');
@@ -257,9 +258,9 @@ function generateVmessLink(node) {
 function generateVlessLink(node) {
   const params = new URLSearchParams();
   if (node.encryption) params.append('encryption', node.encryption);
-  if (node.security) params.append('security', node.security);
+  if (node.tls && node.tls !== 'none') params.append('security', node.tls);
   if (node.sni) params.append('sni', node.sni);
-  if (node.type) params.append('type', node.type);
+  if (node.network) params.append('type', node.network);
   if (node.host) params.append('host', node.host);
   if (node.path) params.append('path', node.path);
   
