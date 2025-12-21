@@ -1,0 +1,19 @@
+{
+  "name": "subscription-management-panel",
+  "version": "1.0.0",
+  "description": "A subscription link management panel for managing vmess, vless nodes",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["subscription", "vmess", "vless", "v2ray", "xboard"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "uuid": "^9.0.0"
+  }
+}

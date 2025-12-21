@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订阅管理面板 - 控制台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            background: white;
+            padding: 10px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-danger {
+            background: #f44336;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 20px;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+            font-size: 13px;
+        }
+
+        td {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        .subscription-link {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            margin-top: 10px;
+            position: relative;
+        }
+
+        .copy-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+
+        .success-message {
+            background: #4caf50;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2000;
+            display: none;
+            animation: slideIn 0.3s;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+            }
+            to {
+                transform: translateX(0);
+            }
+        }
+
+        .checkbox-group {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 10px;
+        }
+
+        .checkbox-item {
+            padding: 8px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 订阅管理面板</h1>
+        <div class="user-info">
+            <span id="username"></span>
+            <button class="logout-btn" onclick="logout()">退出登录</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('nodes')">节点管理</button>
+            <button class="tab" onclick="switchTab('subscriptions')">订阅管理</button>
+        </div>
+
+        <!-- Nodes Tab -->
+        <div id="nodesTab" class="tab-content active">
+            <div class="card">
+                <h2>
+                    节点列表
+                    <button class="btn" onclick="openNodeModal()">+ 添加节点</button>
+                </h2>
+                <div id="nodesTable"></div>
+            </div>
+        </div>
+
+        <!-- Subscriptions Tab -->
+        <div id="subscriptionsTab" class="tab-content">
+            <div class="card">
+                <h2>
+                    订阅列表
+                    <button class="btn" onclick="openSubscriptionModal()">+ 创建订阅</button>
+                </h2>
+                <div id="subscriptionsTable"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Node Modal -->
+    <div id="nodeModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="nodeModalTitle">添加节点</h3>
+                <button class="close-btn" onclick="closeNodeModal()">&times;</button>
+            </div>
+            <form id="nodeForm">
+                <input type="hidden" id="nodeId">
+                <div class="form-group">
+                    <label>节点类型*</label>
+                    <select id="nodeType" required>
+                        <option value="vmess">VMess</option>
+                        <option value="vless">VLess</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>节点名称*</label>
+                    <input type="text" id="nodeName" required>
+                </div>
+                <div class="form-group">
+                    <label>服务器地址*</label>
+                    <input type="text" id="nodeServer" placeholder="example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>端口*</label>
+                    <input type="number" id="nodePort" placeholder="443" required>
+                </div>
+                <div class="form-group">
+                    <label>UUID*</label>
+                    <input type="text" id="nodeUuid" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" required>
+                </div>
+                <div class="form-group" id="alterIdGroup">
+                    <label>Alter ID (VMess)</label>
+                    <input type="number" id="nodeAlterId" placeholder="0" value="0">
+                </div>
+                <div class="form-group">
+                    <label>传输协议</label>
+                    <select id="nodeNetwork">
+                        <option value="tcp">TCP</option>
+                        <option value="ws">WebSocket</option>
+                        <option value="grpc">gRPC</option>
+                        <option value="h2">HTTP/2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>TLS</label>
+                    <select id="nodeTls">
+                        <option value="none">无</option>
+                        <option value="tls">TLS</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Host</label>
+                    <input type="text" id="nodeHost" placeholder="可选">
+                </div>
+                <div class="form-group">
+                    <label>Path</label>
+                    <input type="text" id="nodePath" placeholder="可选">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn" style="flex: 1;">保存</button>
+                    <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeNodeModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Subscription Modal -->
+    <div id="subscriptionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="subscriptionModalTitle">创建订阅</h3>
+                <button class="close-btn" onclick="closeSubscriptionModal()">&times;</button>
+            </div>
+            <form id="subscriptionForm">
+                <input type="hidden" id="subscriptionId">
+                <div class="form-group">
+                    <label>订阅名称*</label>
+                    <input type="text" id="subscriptionName" required>
+                </div>
+                <div class="form-group">
+                    <label>选择节点*</label>
+                    <div id="nodeCheckboxes" class="checkbox-group"></div>
+                </div>
+                <div class="form-group">
+                    <label>到期时间 (可选)</label>
+                    <input type="datetime-local" id="subscriptionExpires">
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button type="submit" class="btn" style="flex: 1;">保存</button>
+                    <button type="button" class="btn btn-secondary" style="flex: 1;" onclick="closeSubscriptionModal()">取消</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="successMessage" class="success-message"></div>
+
+    <script>
+        const API_BASE = '';
+        let token = localStorage.getItem('token');
+        let currentEditingNodeId = null;
+        let currentEditingSubscriptionId = null;
+        let allNodes = [];
+        let allSubscriptions = [];
+
+        // Check authentication
+        if (!token) {
+            window.location.href = '/';
+        }
+
+        // Display username
+        document.getElementById('username').textContent = localStorage.getItem('username') || 'Admin';
+
+        // API helper
+        async function apiCall(endpoint, options = {}) {
+            const response = await fetch(API_BASE + endpoint, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                    ...options.headers
+                }
+            });
+
+            if (response.status === 401 || response.status === 403) {
+                logout();
+                return null;
+            }
+
+            return response;
+        }
+
+        // Logout
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            window.location.href = '/';
+        }
+
+        // Tab switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        // Load nodes
+        async function loadNodes() {
+            const response = await apiCall('/api/nodes');
+            if (!response) return;
+            
+            allNodes = await response.json();
+            renderNodesTable();
+        }
+
+        // Render nodes table
+        function renderNodesTable() {
+            const container = document.getElementById('nodesTable');
+            
+            if (allNodes.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无节点，点击右上角添加节点</div>';
+                return;
+            }
+
+            const html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>类型</th>
+                            <th>地址</th>
+                            <th>端口</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${allNodes.map(node => `
+                            <tr>
+                                <td>${node.name}</td>
+                                <td>${node.type.toUpperCase()}</td>
+                                <td>${node.server}</td>
+                                <td>${node.port}</td>
+                                <td class="actions">
+                                    <button class="btn btn-small btn-secondary" onclick="editNode('${node.id}')">编辑</button>
+                                    <button class="btn btn-small btn-danger" onclick="deleteNode('${node.id}')">删除</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = html;
+        }
+
+        // Open node modal
+        function openNodeModal(nodeId = null) {
+            currentEditingNodeId = nodeId;
+            const modal = document.getElementById('nodeModal');
+            const form = document.getElementById('nodeForm');
+            
+            if (nodeId) {
+                const node = allNodes.find(n => n.id === nodeId);
+                document.getElementById('nodeModalTitle').textContent = '编辑节点';
+                document.getElementById('nodeId').value = node.id;
+                document.getElementById('nodeType').value = node.type;
+                document.getElementById('nodeName').value = node.name;
+                document.getElementById('nodeServer').value = node.server;
+                document.getElementById('nodePort').value = node.port;
+                document.getElementById('nodeUuid').value = node.uuid;
+                document.getElementById('nodeAlterId').value = node.alterId || '0';
+                document.getElementById('nodeNetwork').value = node.network || 'tcp';
+                document.getElementById('nodeTls').value = node.tls || 'none';
+                document.getElementById('nodeHost').value = node.host || '';
+                document.getElementById('nodePath').value = node.path || '';
+            } else {
+                document.getElementById('nodeModalTitle').textContent = '添加节点';
+                form.reset();
+            }
+            
+            modal.classList.add('show');
+        }
+
+        // Close node modal
+        function closeNodeModal() {
+            document.getElementById('nodeModal').classList.remove('show');
+        }
+
+        // Edit node
+        function editNode(nodeId) {
+            openNodeModal(nodeId);
+        }
+
+        // Delete node
+        async function deleteNode(nodeId) {
+            if (!confirm('确定要删除这个节点吗？')) return;
+            
+            const response = await apiCall(`/api/nodes/${nodeId}`, { method: 'DELETE' });
+            if (response && response.ok) {
+                showSuccess('节点已删除');
+                loadNodes();
+            }
+        }
+
+        // Node form submit
+        document.getElementById('nodeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const nodeData = {
+                type: document.getElementById('nodeType').value,
+                name: document.getElementById('nodeName').value,
+                server: document.getElementById('nodeServer').value,
+                port: parseInt(document.getElementById('nodePort').value),
+                uuid: document.getElementById('nodeUuid').value,
+                alterId: parseInt(document.getElementById('nodeAlterId').value) || 0,
+                network: document.getElementById('nodeNetwork').value,
+                tls: document.getElementById('nodeTls').value,
+                host: document.getElementById('nodeHost').value,
+                path: document.getElementById('nodePath').value
+            };
+
+            const nodeId = document.getElementById('nodeId').value;
+            let response;
+            
+            if (nodeId) {
+                response = await apiCall(`/api/nodes/${nodeId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(nodeData)
+                });
+            } else {
+                response = await apiCall('/api/nodes', {
+                    method: 'POST',
+                    body: JSON.stringify(nodeData)
+                });
+            }
+
+            if (response && response.ok) {
+                showSuccess(nodeId ? '节点已更新' : '节点已创建');
+                closeNodeModal();
+                loadNodes();
+            }
+        });
+
+        // Load subscriptions
+        async function loadSubscriptions() {
+            const response = await apiCall('/api/subscriptions');
+            if (!response) return;
+            
+            allSubscriptions = await response.json();
+            renderSubscriptionsTable();
+        }
+
+        // Render subscriptions table
+        function renderSubscriptionsTable() {
+            const container = document.getElementById('subscriptionsTable');
+            
+            if (allSubscriptions.length === 0) {
+                container.innerHTML = '<div class="empty-state">暂无订阅，点击右上角创建订阅</div>';
+                return;
+            }
+
+            const html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>节点数量</th>
+                            <th>到期时间</th>
+                            <th>订阅链接</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${allSubscriptions.map(sub => {
+                            const expireText = sub.expiresAt ? new Date(sub.expiresAt).toLocaleString('zh-CN') : '永久';
+                            const subLink = `${window.location.origin}/api/subscription/${sub.id}`;
+                            return `
+                                <tr>
+                                    <td>${sub.name}</td>
+                                    <td>${sub.nodeIds.length}</td>
+                                    <td>${expireText}</td>
+                                    <td>
+                                        <button class="btn btn-small" onclick="copyToClipboard('${subLink}')">复制链接</button>
+                                    </td>
+                                    <td class="actions">
+                                        <button class="btn btn-small btn-secondary" onclick="editSubscription('${sub.id}')">编辑</button>
+                                        <button class="btn btn-small btn-danger" onclick="deleteSubscription('${sub.id}')">删除</button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            container.innerHTML = html;
+        }
+
+        // Open subscription modal
+        async function openSubscriptionModal(subscriptionId = null) {
+            await loadNodes(); // Ensure we have latest nodes
+            
+            currentEditingSubscriptionId = subscriptionId;
+            const modal = document.getElementById('subscriptionModal');
+            const form = document.getElementById('subscriptionForm');
+            
+            // Render node checkboxes
+            const checkboxContainer = document.getElementById('nodeCheckboxes');
+            checkboxContainer.innerHTML = allNodes.map(node => `
+                <div class="checkbox-item">
+                    <input type="checkbox" id="node_${node.id}" value="${node.id}">
+                    <label for="node_${node.id}">${node.name} (${node.type.toUpperCase()})</label>
+                </div>
+            `).join('');
+            
+            if (subscriptionId) {
+                const sub = allSubscriptions.find(s => s.id === subscriptionId);
+                document.getElementById('subscriptionModalTitle').textContent = '编辑订阅';
+                document.getElementById('subscriptionId').value = sub.id;
+                document.getElementById('subscriptionName').value = sub.name;
+                
+                // Check selected nodes
+                sub.nodeIds.forEach(nodeId => {
+                    const checkbox = document.getElementById(`node_${nodeId}`);
+                    if (checkbox) checkbox.checked = true;
+                });
+                
+                if (sub.expiresAt) {
+                    const date = new Date(sub.expiresAt);
+                    const localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+                        .toISOString().slice(0, 16);
+                    document.getElementById('subscriptionExpires').value = localDateTime;
+                }
+            } else {
+                document.getElementById('subscriptionModalTitle').textContent = '创建订阅';
+                form.reset();
+            }
+            
+            modal.classList.add('show');
+        }
+
+        // Close subscription modal
+        function closeSubscriptionModal() {
+            document.getElementById('subscriptionModal').classList.remove('show');
+        }
+
+        // Edit subscription
+        function editSubscription(subscriptionId) {
+            openSubscriptionModal(subscriptionId);
+        }
+
+        // Delete subscription
+        async function deleteSubscription(subscriptionId) {
+            if (!confirm('确定要删除这个订阅吗？')) return;
+            
+            const response = await apiCall(`/api/subscriptions/${subscriptionId}`, { method: 'DELETE' });
+            if (response && response.ok) {
+                showSuccess('订阅已删除');
+                loadSubscriptions();
+            }
+        }
+
+        // Subscription form submit
+        document.getElementById('subscriptionForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const selectedNodes = Array.from(document.querySelectorAll('#nodeCheckboxes input:checked'))
+                .map(cb => cb.value);
+            
+            if (selectedNodes.length === 0) {
+                alert('请至少选择一个节点');
+                return;
+            }
+
+            const subscriptionData = {
+                name: document.getElementById('subscriptionName').value,
+                nodeIds: selectedNodes,
+                expiresAt: document.getElementById('subscriptionExpires').value || null
+            };
+
+            const subscriptionId = document.getElementById('subscriptionId').value;
+            let response;
+            
+            if (subscriptionId) {
+                response = await apiCall(`/api/subscriptions/${subscriptionId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(subscriptionData)
+                });
+            } else {
+                response = await apiCall('/api/subscriptions', {
+                    method: 'POST',
+                    body: JSON.stringify(subscriptionData)
+                });
+            }
+
+            if (response && response.ok) {
+                showSuccess(subscriptionId ? '订阅已更新' : '订阅已创建');
+                closeSubscriptionModal();
+                loadSubscriptions();
+            }
+        });
+
+        // Copy to clipboard
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showSuccess('链接已复制到剪贴板');
+            });
+        }
+
+        // Show success message
+        function showSuccess(message) {
+            const successMsg = document.getElementById('successMessage');
+            successMsg.textContent = message;
+            successMsg.classList.add('show');
+            setTimeout(() => {
+                successMsg.classList.remove('show');
+            }, 3000);
+        }
+
+        // Initialize
+        loadNodes();
+        loadSubscriptions();
+    </script>
+</body>
+</html>
