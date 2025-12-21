@@ -123,9 +123,9 @@ chmod +x start.sh
 
 支持的链接格式示例：
 ```
-vmess://eyJhZGQiOiAibWFpbC5kbDY2Lm1lIiwgInBvcnQiOiAiMjAwMDEiLCAiaWQiOiAiMjIzYzk5N2ItOTgyMy00MzRkLWM4YmUtMmViZmFlODIyNTlkIiwgImFpZCI6ICIwIiwgIm5ldCI6ICJ0Y3AiLCAidHlwZSI6ICJub25lIiwgInRscyI6ICJub25lIn0=
+vmess://ew0KICAidiI6ICIyIiwNCiAgInBzIjogIuaXp+mHkeWxsXRjcCIsDQogICJhZGQiOiAiNjQu5OGI2MzFlMThhMCIsDQogICJhidGNwIiwNCiAgInR5cGUiOiAibm9uZSI0IjogIiIsDQogICJwYXRoIjogIiIsDQogICJ0bHMiOiAibm9uZSIsDQogICJzbmkiOiAiIiwNCiAgImFscG4iOiAiIg0KfQ==
 
-vless://223c997b-9823-434d-c8be-2ebfae82259d@mail.dl66.me:20001?type=tcp&security=none#HK
+vless://223c327b-9823-434d-c8be-2ebfae82854d@123.123.123.123:12312?type=tcp&security=none#HK
 ```
 
 ### 3. 创建订阅
