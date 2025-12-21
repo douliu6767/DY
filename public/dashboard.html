@@ -15,6 +15,8 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: #f5f7fa;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
         .header {
@@ -25,6 +27,7 @@
             justify-content: space-between;
             align-items: center;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
         }
 
         .header h1 {
@@ -52,37 +55,64 @@
             background: rgba(255, 255, 255, 0.3);
         }
 
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 30px;
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
         }
 
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 30px;
+        .sidebar {
+            width: 250px;
             background: white;
-            padding: 10px;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            flex-shrink: 0;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 0 15px;
         }
 
         .tab {
-            padding: 12px 24px;
+            padding: 15px 20px;
             background: transparent;
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            font-size: 14px;
+            font-size: 15px;
             font-weight: 500;
             color: #666;
             transition: all 0.3s;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tab:hover {
+            background: #f5f7fa;
+            color: #667eea;
         }
 
         .tab.active {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
+        }
+
+        .tab.active:hover {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px;
         }
 
         .tab-content {
@@ -317,6 +347,43 @@
         .checkbox-item input[type="checkbox"] {
             width: auto;
         }
+
+        /* Responsive design for mobile */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 80px;
+            }
+
+            .sidebar-nav .tab span:last-child {
+                display: none;
+            }
+
+            .sidebar-nav .tab {
+                justify-content: center;
+                padding: 15px 10px;
+            }
+
+            .container {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 18px;
+            }
+
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            th, td {
+                padding: 8px 4px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -328,15 +395,27 @@
         </div>
     </div>
 
-    <div class="container">
-        <div class="tabs">
-            <button class="tab active" onclick="switchTab('subscriptions')">订阅管理</button>
-            <button class="tab" onclick="switchTab('nodes')">节点管理</button>
-            <button class="tab" onclick="switchTab('settings')">系统设置</button>
+    <div class="main-layout">
+        <div class="sidebar">
+            <nav class="sidebar-nav">
+                <button class="tab active" onclick="switchTab('subscriptions')">
+                    <span>📋</span>
+                    <span>订阅管理</span>
+                </button>
+                <button class="tab" onclick="switchTab('nodes')">
+                    <span>🌐</span>
+                    <span>节点管理</span>
+                </button>
+                <button class="tab" onclick="switchTab('settings')">
+                    <span>⚙️</span>
+                    <span>系统设置</span>
+                </button>
+            </nav>
         </div>
 
-        <!-- Subscriptions Tab -->
-        <div id="subscriptionsTab" class="tab-content active">
+        <div class="container">
+            <!-- Subscriptions Tab -->
+            <div id="subscriptionsTab" class="tab-content active">
             <div class="card">
                 <h2>
                     订阅列表
@@ -393,6 +472,7 @@
                     <button type="submit" class="btn">更新密码</button>
                 </form>
             </div>
+        </div>
         </div>
     </div>
 
@@ -581,7 +661,12 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             
-            event.target.classList.add('active');
+            // Find and activate the correct tab button
+            document.querySelectorAll('.tab').forEach(t => {
+                if (t.onclick && t.onclick.toString().includes(`'${tab}'`)) {
+                    t.classList.add('active');
+                }
+            });
             document.getElementById(tab + 'Tab').classList.add('active');
         }
 
