@@ -595,7 +595,7 @@
                 </div>
                 <div class="form-group">
                     <label>选择节点* (按住 Ctrl/Cmd 多选)</label>
-                    <select id="subscriptionNodes" multiple required style="min-height: 150px;">
+                    <select id="subscriptionNodes" multiple required>
                     </select>
                     <small style="color: #666; display: block; margin-top: 5px;">按住 Ctrl (Windows) 或 Cmd (Mac) 键可以选择多个节点</small>
                 </div>
@@ -729,7 +729,7 @@
                     </thead>
                     <tbody>
                         ${allNodes.map((node, index) => {
-                            const createdTime = node.createdAt ? new Date(node.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '-';
+                            const createdTime = formatBeijingTime(node.createdAt);
                             return `
                             <tr>
                                 <td>${index + 1}</td>
@@ -871,7 +871,7 @@
                     </thead>
                     <tbody>
                         ${allSubscriptions.map((sub, index) => {
-                            const expireText = sub.expiresAt ? new Date(sub.expiresAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '永久';
+                            const expireText = sub.expiresAt ? formatBeijingTime(sub.expiresAt) : '永久';
                             const trafficGB = Math.round((sub.trafficLimit || DEFAULT_TRAFFIC_LIMIT_BYTES) / BYTES_PER_GB);
                             const trafficText = trafficGB >= 1024 ? `${(trafficGB / 1024).toFixed(1)} TB` : `${trafficGB} GB`;
                             const subLink = `${window.location.origin}/subscription/${sub.id}`;
@@ -896,6 +896,12 @@
                 </table>
             `;
             container.innerHTML = html;
+        }
+
+        // Helper function to format Beijing time for display
+        function formatBeijingTime(isoString) {
+            if (!isoString) return '-';
+            return new Date(isoString).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         }
 
         // Convert days to expiry date
@@ -946,6 +952,7 @@
                 
                 if (sub.expiresAt) {
                     const date = new Date(sub.expiresAt);
+                    // Convert to local datetime-local format by adjusting for timezone offset
                     const localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
                         .toISOString().slice(0, 16);
                     document.getElementById('subscriptionExpires').value = localDateTime;
