@@ -1,18 +1,27 @@
 {
   "name": "subscription-management-panel",
-  "version": "1.0.0",
-  "description": "A subscription link management panel for managing vmess, vless nodes",
+  "version": "2.0.0",
+  "description": "A subscription link management panel for managing vmess, vless nodes with SQLite database, node import, and Docker support",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"
   },
-  "keywords": ["subscription", "vmess", "vless", "v2ray", "xboard"],
+  "keywords": [
+    "subscription",
+    "vmess",
+    "vless",
+    "v2ray",
+    "xboard",
+    "sqlite",
+    "docker"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
     "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.5.0",
+    "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "uuid": "^9.0.0"
   }
