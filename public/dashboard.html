@@ -348,6 +348,21 @@
             width: auto;
         }
 
+        .form-group select[multiple] {
+            min-height: 150px;
+        }
+
+        .days-input-group {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .days-input-group .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
         /* Responsive design for mobile */
         @media (max-width: 768px) {
             .sidebar {
@@ -579,11 +594,23 @@
                     <input type="text" id="subscriptionName" required>
                 </div>
                 <div class="form-group">
-                    <label>选择节点*</label>
-                    <div id="nodeCheckboxes" class="checkbox-group"></div>
+                    <label>选择节点* (按住 Ctrl/Cmd 多选)</label>
+                    <select id="subscriptionNodes" multiple required style="min-height: 150px;">
+                    </select>
+                    <small style="color: #666; display: block; margin-top: 5px;">按住 Ctrl (Windows) 或 Cmd (Mac) 键可以选择多个节点</small>
                 </div>
                 <div class="form-group">
-                    <label>到期时间 (可选)</label>
+                    <label>设置到期时间</label>
+                    <div class="days-input-group">
+                        <div class="form-group">
+                            <label>输入天数</label>
+                            <input type="number" id="subscriptionDays" placeholder="例如: 30" min="1">
+                        </div>
+                        <button type="button" class="btn btn-secondary" onclick="convertDaysToExpiry()">转换为到期时间</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>或直接选择到期时间 (可选)</label>
                     <input type="datetime-local" id="subscriptionExpires">
                 </div>
                 <div class="form-group">
@@ -691,26 +718,32 @@
                 <table>
                     <thead>
                         <tr>
+                            <th>序号</th>
                             <th>名称</th>
                             <th>类型</th>
                             <th>地址</th>
                             <th>端口</th>
+                            <th>创建时间</th>
                             <th>操作</th>
                         </tr>
                     </thead>
                     <tbody>
-                        ${allNodes.map(node => `
+                        ${allNodes.map((node, index) => {
+                            const createdTime = node.createdAt ? new Date(node.createdAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '-';
+                            return `
                             <tr>
+                                <td>${index + 1}</td>
                                 <td>${node.name}</td>
                                 <td>${node.type.toUpperCase()}</td>
                                 <td>${node.server}</td>
                                 <td>${node.port}</td>
+                                <td>${createdTime}</td>
                                 <td class="actions">
                                     <button class="btn btn-small btn-secondary" onclick="editNode('${node.id}')">编辑</button>
                                     <button class="btn btn-small btn-danger" onclick="deleteNode('${node.id}')">删除</button>
                                 </td>
                             </tr>
-                        `).join('')}
+                        `}).join('')}
                     </tbody>
                 </table>
             `;
@@ -827,6 +860,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th>序号</th>
                             <th>名称</th>
                             <th>节点数量</th>
                             <th>流量限制</th>
@@ -836,13 +870,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${allSubscriptions.map(sub => {
+                        ${allSubscriptions.map((sub, index) => {
                             const expireText = sub.expiresAt ? new Date(sub.expiresAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }) : '永久';
                             const trafficGB = Math.round((sub.trafficLimit || DEFAULT_TRAFFIC_LIMIT_BYTES) / BYTES_PER_GB);
                             const trafficText = trafficGB >= 1024 ? `${(trafficGB / 1024).toFixed(1)} TB` : `${trafficGB} GB`;
                             const subLink = `${window.location.origin}/subscription/${sub.id}`;
                             return `
                                 <tr>
+                                    <td>${index + 1}</td>
                                     <td>${sub.name}</td>
                                     <td>${sub.nodeIds.length}</td>
                                     <td>${trafficText}</td>
@@ -863,6 +898,25 @@
             container.innerHTML = html;
         }
 
+        // Convert days to expiry date
+        function convertDaysToExpiry() {
+            const days = parseInt(document.getElementById('subscriptionDays').value);
+            if (!days || days <= 0) {
+                alert('请输入有效的天数（大于0）');
+                return;
+            }
+            
+            const now = new Date();
+            const expiryDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+            
+            // Convert to local datetime string format
+            const localDateTime = new Date(expiryDate.getTime() - expiryDate.getTimezoneOffset() * 60000)
+                .toISOString().slice(0, 16);
+            
+            document.getElementById('subscriptionExpires').value = localDateTime;
+            showSuccess(`已设置到期时间为 ${days} 天后`);
+        }
+
         // Open subscription modal
         async function openSubscriptionModal(subscriptionId = null) {
             await loadNodes(); // Ensure we have latest nodes
@@ -871,13 +925,10 @@
             const modal = document.getElementById('subscriptionModal');
             const form = document.getElementById('subscriptionForm');
             
-            // Render node checkboxes
-            const checkboxContainer = document.getElementById('nodeCheckboxes');
-            checkboxContainer.innerHTML = allNodes.map(node => `
-                <div class="checkbox-item">
-                    <input type="checkbox" id="node_${node.id}" value="${node.id}">
-                    <label for="node_${node.id}">${node.name} (${node.type.toUpperCase()})</label>
-                </div>
+            // Render node options in select dropdown
+            const selectContainer = document.getElementById('subscriptionNodes');
+            selectContainer.innerHTML = allNodes.map(node => `
+                <option value="${node.id}">${node.name} (${node.type.toUpperCase()})</option>
             `).join('');
             
             if (subscriptionId) {
@@ -886,10 +937,11 @@
                 document.getElementById('subscriptionId').value = sub.id;
                 document.getElementById('subscriptionName').value = sub.name;
                 
-                // Check selected nodes
-                sub.nodeIds.forEach(nodeId => {
-                    const checkbox = document.getElementById(`node_${nodeId}`);
-                    if (checkbox) checkbox.checked = true;
+                // Select the nodes
+                Array.from(selectContainer.options).forEach(option => {
+                    if (sub.nodeIds.includes(option.value)) {
+                        option.selected = true;
+                    }
                 });
                 
                 if (sub.expiresAt) {
@@ -936,8 +988,8 @@
         document.getElementById('subscriptionForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const selectedNodes = Array.from(document.querySelectorAll('#nodeCheckboxes input:checked'))
-                .map(cb => cb.value);
+            const selectElement = document.getElementById('subscriptionNodes');
+            const selectedNodes = Array.from(selectElement.selectedOptions).map(option => option.value);
             
             if (selectedNodes.length === 0) {
                 alert('请至少选择一个节点');
