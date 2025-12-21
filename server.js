@@ -261,7 +261,7 @@ function recordLoginAttempt(req) {
 
 // Node management routes
 app.get('/api/nodes', authenticateToken, (req, res) => {
-  const nodes = db.prepare('SELECT * FROM nodes ORDER BY created_at DESC').all();
+  const nodes = db.prepare('SELECT * FROM nodes ORDER BY created_at ASC').all();
   // Convert snake_case to camelCase for frontend compatibility
   const formattedNodes = nodes.map(node => ({
     id: node.id,
@@ -490,7 +490,7 @@ function parseVlessLink(link) {
 
 // Subscription management routes
 app.get('/api/subscriptions', authenticateToken, (req, res) => {
-  const subscriptions = db.prepare('SELECT * FROM subscriptions ORDER BY created_at DESC').all();
+  const subscriptions = db.prepare('SELECT * FROM subscriptions ORDER BY created_at ASC').all();
   
   const result = subscriptions.map(sub => {
     const nodeIds = db.prepare('SELECT node_id FROM subscription_nodes WHERE subscription_id = ?')
