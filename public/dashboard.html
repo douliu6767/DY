@@ -363,6 +363,62 @@
             margin-bottom: 0;
         }
 
+        .node-selection-container {
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            max-height: 250px;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .node-checkbox-item {
+            padding: 10px;
+            margin-bottom: 5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+
+        .node-checkbox-item:hover {
+            background-color: #f5f7fa;
+        }
+
+        .node-checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .node-checkbox-label {
+            cursor: pointer;
+            flex: 1;
+            user-select: none;
+        }
+
+        .node-index {
+            color: #667eea;
+            font-weight: 600;
+            min-width: 30px;
+        }
+
+        .node-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .node-name {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .node-type {
+            color: #999;
+            font-size: 12px;
+        }
+
         /* Responsive design for mobile */
         @media (max-width: 768px) {
             .sidebar {
@@ -594,10 +650,11 @@
                     <input type="text" id="subscriptionName" required>
                 </div>
                 <div class="form-group">
-                    <label>选择节点* (按住 Ctrl/Cmd 多选)</label>
-                    <select id="subscriptionNodes" multiple required>
-                    </select>
-                    <small style="color: #666; display: block; margin-top: 5px;">按住 Ctrl (Windows) 或 Cmd (Mac) 键可以选择多个节点</small>
+                    <label>选择节点* (勾选节点)</label>
+                    <div id="subscriptionNodes" class="node-selection-container">
+                        <!-- Node checkboxes will be populated here -->
+                    </div>
+                    <small style="color: #666; display: block; margin-top: 5px;">勾选需要添加到订阅的节点</small>
                 </div>
                 <div class="form-group">
                     <label>设置到期时间</label>
@@ -931,10 +988,21 @@
             const modal = document.getElementById('subscriptionModal');
             const form = document.getElementById('subscriptionForm');
             
-            // Render node options in select dropdown
-            const selectContainer = document.getElementById('subscriptionNodes');
-            selectContainer.innerHTML = allNodes.map(node => `
-                <option value="${node.id}">${node.name} (${node.type.toUpperCase()})</option>
+            // Render node checkboxes in container
+            const nodeContainer = document.getElementById('subscriptionNodes');
+            nodeContainer.innerHTML = allNodes.map((node, index) => `
+                <div class="node-checkbox-item">
+                    <input type="checkbox" id="node_${node.id}" value="${node.id}">
+                    <label for="node_${node.id}" class="node-checkbox-label">
+                        <div class="node-info">
+                            <div>
+                                <span class="node-index">${index + 1}.</span>
+                                <span class="node-name">${node.name}</span>
+                                <span class="node-type">(${node.type.toUpperCase()})</span>
+                            </div>
+                        </div>
+                    </label>
+                </div>
             `).join('');
             
             if (subscriptionId) {
@@ -943,10 +1011,11 @@
                 document.getElementById('subscriptionId').value = sub.id;
                 document.getElementById('subscriptionName').value = sub.name;
                 
-                // Select the nodes
-                Array.from(selectContainer.options).forEach(option => {
-                    if (sub.nodeIds.includes(option.value)) {
-                        option.selected = true;
+                // Check the selected nodes
+                sub.nodeIds.forEach(nodeId => {
+                    const checkbox = document.getElementById(`node_${nodeId}`);
+                    if (checkbox) {
+                        checkbox.checked = true;
                     }
                 });
                 
@@ -995,8 +1064,9 @@
         document.getElementById('subscriptionForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const selectElement = document.getElementById('subscriptionNodes');
-            const selectedNodes = Array.from(selectElement.selectedOptions).map(option => option.value);
+            // Get all checked node checkboxes
+            const checkedBoxes = document.querySelectorAll('#subscriptionNodes input[type="checkbox"]:checked');
+            const selectedNodes = Array.from(checkedBoxes).map(checkbox => checkbox.value);
             
             if (selectedNodes.length === 0) {
                 alert('请至少选择一个节点');
@@ -1034,9 +1104,48 @@
 
         // Copy to clipboard
         function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                showSuccess('链接已复制到剪贴板');
-            });
+            // Try using the modern Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(() => {
+                    showSuccess('链接已复制到剪贴板');
+                }).catch(() => {
+                    // Fallback if Clipboard API fails
+                    fallbackCopyTextToClipboard(text);
+                });
+            } else {
+                // Use fallback for older browsers or non-secure contexts
+                fallbackCopyTextToClipboard(text);
+            }
+        }
+
+        // Fallback copy method
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.top = "-9999px";
+            textArea.style.left = "-9999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showSuccess('链接已复制到剪贴板');
+                } else {
+                    showError('复制失败，请手动复制');
+                }
+            } catch (err) {
+                showError('复制失败，请手动复制');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+
+        // Show error message
+        function showError(message) {
+            alert(message);
         }
 
         // Show success message
