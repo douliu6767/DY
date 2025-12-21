@@ -705,6 +705,7 @@
         // Constants
         const DEFAULT_TRAFFIC_LIMIT_BYTES = 107374182400; // 100GB in bytes
         const BYTES_PER_GB = 1073741824; // 1GB in bytes
+        const MILLISECONDS_PER_MINUTE = 60000; // Milliseconds in a minute
 
         // Check authentication
         if (!token) {
@@ -961,6 +962,12 @@
             return new Date(isoString).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         }
 
+        // Helper function to convert Date to datetime-local format
+        function toDatetimeLocalFormat(date) {
+            return new Date(date.getTime() - date.getTimezoneOffset() * MILLISECONDS_PER_MINUTE)
+                .toISOString().slice(0, 16);
+        }
+
         // Convert days to expiry date
         function convertDaysToExpiry() {
             const days = parseInt(document.getElementById('subscriptionDays').value);
@@ -970,11 +977,10 @@
             }
             
             const now = new Date();
-            const expiryDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+            const expiryDate = new Date(now.getTime() + days * 24 * 60 * MILLISECONDS_PER_MINUTE);
             
             // Convert to local datetime string format
-            const localDateTime = new Date(expiryDate.getTime() - expiryDate.getTimezoneOffset() * 60000)
-                .toISOString().slice(0, 16);
+            const localDateTime = toDatetimeLocalFormat(expiryDate);
             
             document.getElementById('subscriptionExpires').value = localDateTime;
             showSuccess(`已设置到期时间为 ${days} 天后`);
@@ -1022,8 +1028,7 @@
                 if (sub.expiresAt) {
                     const date = new Date(sub.expiresAt);
                     // Convert to local datetime-local format by adjusting for timezone offset
-                    const localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-                        .toISOString().slice(0, 16);
+                    const localDateTime = toDatetimeLocalFormat(date);
                     document.getElementById('subscriptionExpires').value = localDateTime;
                 }
                 
@@ -1120,8 +1125,11 @@
 
         // Fallback copy method
         function fallbackCopyTextToClipboard(text) {
+            // Basic sanitization - ensure text is a string
+            const sanitizedText = String(text || '');
+            
             const textArea = document.createElement("textarea");
-            textArea.value = text;
+            textArea.value = sanitizedText;
             textArea.style.position = "fixed";
             textArea.style.top = "-9999px";
             textArea.style.left = "-9999px";
@@ -1138,9 +1146,16 @@
                 }
             } catch (err) {
                 showError('复制失败，请手动复制');
+            } finally {
+                // Safely remove the textarea
+                try {
+                    if (textArea.parentNode) {
+                        document.body.removeChild(textArea);
+                    }
+                } catch (removeErr) {
+                    // Ignore removal errors
+                }
             }
-            
-            document.body.removeChild(textArea);
         }
 
         // Show error message
