@@ -98,6 +98,7 @@ function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS subscription_nodes (
       subscription_id TEXT NOT NULL,
       node_id TEXT NOT NULL,
+      position INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (subscription_id, node_id),
       FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE CASCADE,
       FOREIGN KEY (node_id) REFERENCES nodes(id) ON DELETE CASCADE
@@ -107,6 +108,16 @@ function initializeDatabase() {
   // Add traffic_limit column if it doesn't exist (for database migration)
   try {
     db.exec(`ALTER TABLE subscriptions ADD COLUMN traffic_limit INTEGER DEFAULT ${DEFAULT_TRAFFIC_LIMIT_BYTES}`);
+  } catch (error) {
+    // Column already exists or other migration issue - check if it's the expected error
+    if (!error.message.includes('duplicate column name')) {
+      console.warn('Database migration warning:', error.message);
+    }
+  }
+  
+  // Add position column to subscription_nodes if it doesn't exist (for database migration)
+  try {
+    db.exec(`ALTER TABLE subscription_nodes ADD COLUMN position INTEGER NOT NULL DEFAULT 0`);
   } catch (error) {
     // Column already exists or other migration issue - check if it's the expected error
     if (!error.message.includes('duplicate column name')) {
@@ -179,13 +190,13 @@ function migrateFromJSON() {
     try {
       const subscriptions = JSON.parse(fs.readFileSync(SUBSCRIPTIONS_FILE, 'utf8'));
       const insertSub = db.prepare('INSERT OR IGNORE INTO subscriptions (id, name, expires_at, created_at) VALUES (?, ?, ?, ?)');
-      const insertSubNode = db.prepare('INSERT OR IGNORE INTO subscription_nodes (subscription_id, node_id) VALUES (?, ?)');
+      const insertSubNode = db.prepare('INSERT OR IGNORE INTO subscription_nodes (subscription_id, node_id, position) VALUES (?, ?, ?)');
       
       for (const sub of subscriptions) {
         insertSub.run(sub.id, sub.name, sub.expiresAt || null, sub.createdAt || getBeijingTime());
         if (sub.nodeIds && Array.isArray(sub.nodeIds)) {
-          for (const nodeId of sub.nodeIds) {
-            insertSubNode.run(sub.id, nodeId);
+          for (let i = 0; i < sub.nodeIds.length; i++) {
+            insertSubNode.run(sub.id, sub.nodeIds[i], i);
           }
         }
       }
@@ -493,7 +504,7 @@ app.get('/api/subscriptions', authenticateToken, (req, res) => {
   const subscriptions = db.prepare('SELECT * FROM subscriptions ORDER BY created_at ASC').all();
   
   const result = subscriptions.map(sub => {
-    const nodeIds = db.prepare('SELECT node_id FROM subscription_nodes WHERE subscription_id = ?')
+    const nodeIds = db.prepare('SELECT node_id FROM subscription_nodes WHERE subscription_id = ? ORDER BY position ASC')
       .all(sub.id)
       .map(row => row.node_id);
     
@@ -524,9 +535,9 @@ app.post('/api/subscriptions', authenticateToken, (req, res) => {
     newSubscription.id, newSubscription.name, newSubscription.expiresAt, newSubscription.trafficLimit, newSubscription.createdAt
   );
   
-  const insertSubNode = db.prepare('INSERT INTO subscription_nodes (subscription_id, node_id) VALUES (?, ?)');
-  for (const nodeId of newSubscription.nodeIds) {
-    insertSubNode.run(newSubscription.id, nodeId);
+  const insertSubNode = db.prepare('INSERT INTO subscription_nodes (subscription_id, node_id, position) VALUES (?, ?, ?)');
+  for (let i = 0; i < newSubscription.nodeIds.length; i++) {
+    insertSubNode.run(newSubscription.id, newSubscription.nodeIds[i], i);
   }
   
   res.status(201).json(newSubscription);
@@ -549,14 +560,14 @@ app.put('/api/subscriptions/:id', authenticateToken, (req, res) => {
   // Update node associations
   if (req.body.nodeIds !== undefined) {
     db.prepare('DELETE FROM subscription_nodes WHERE subscription_id = ?').run(req.params.id);
-    const insertSubNode = db.prepare('INSERT INTO subscription_nodes (subscription_id, node_id) VALUES (?, ?)');
-    for (const nodeId of req.body.nodeIds) {
-      insertSubNode.run(req.params.id, nodeId);
+    const insertSubNode = db.prepare('INSERT INTO subscription_nodes (subscription_id, node_id, position) VALUES (?, ?, ?)');
+    for (let i = 0; i < req.body.nodeIds.length; i++) {
+      insertSubNode.run(req.params.id, req.body.nodeIds[i], i);
     }
   }
   
   const updatedSub = db.prepare('SELECT * FROM subscriptions WHERE id = ?').get(req.params.id);
-  const nodeIds = db.prepare('SELECT node_id FROM subscription_nodes WHERE subscription_id = ?')
+  const nodeIds = db.prepare('SELECT node_id FROM subscription_nodes WHERE subscription_id = ? ORDER BY position ASC')
     .all(req.params.id)
     .map(row => row.node_id);
   
@@ -643,7 +654,7 @@ app.get('/subscription/:id', (req, res) => {
     }
   }
   
-  const nodeIds = db.prepare('SELECT node_id FROM subscription_nodes WHERE subscription_id = ?')
+  const nodeIds = db.prepare('SELECT node_id FROM subscription_nodes WHERE subscription_id = ? ORDER BY position ASC')
     .all(req.params.id)
     .map(row => row.node_id);
   
@@ -664,10 +675,17 @@ app.get('/subscription/:id', (req, res) => {
     return;
   }
   
+  // Fetch all nodes in one query, then reorder them according to nodeIds
   const nodes = db.prepare(`SELECT * FROM nodes WHERE id IN (${nodeIds.map(() => '?').join(',')})`).all(...nodeIds);
   
+  // Create a map for quick lookup
+  const nodeMap = new Map(nodes.map(node => [node.id, node]));
+  
+  // Reorder nodes according to the nodeIds order
+  const orderedNodes = nodeIds.map(id => nodeMap.get(id)).filter(node => node !== undefined);
+  
   // Generate base64 encoded links
-  const links = nodes.map(node => {
+  const links = orderedNodes.map(node => {
     if (node.type === 'vmess') {
       return generateVmessLink(node);
     } else if (node.type === 'vless') {
