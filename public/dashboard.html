@@ -222,6 +222,8 @@
             max-width: 600px;
             max-height: 90vh;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
 
         .modal-header {
@@ -376,6 +378,8 @@
             overflow-y: auto;
             padding: 10px;
             display: none;
+            margin-top: 8px;
+            flex-shrink: 0;
         }
         
         .node-selection-container.expanded {
@@ -1297,11 +1301,11 @@
 
             if (response && response.ok) {
                 const result = await response.json();
-                showSuccess('用户名更新成功，即将退出登录...');
-                // Force logout after 2 seconds
+                showSuccess('用户名更新成功');
+                // Immediately logout
                 setTimeout(() => {
                     logout();
-                }, 2000);
+                }, 500);
             } else {
                 const error = await response.json();
                 alert('更新失败: ' + (error.error || '未知错误'));
@@ -1330,11 +1334,11 @@
             });
 
             if (response && response.ok) {
-                showSuccess('密码更新成功，即将退出登录...');
-                // Force logout after 2 seconds
+                showSuccess('密码更新成功');
+                // Immediately logout
                 setTimeout(() => {
                     logout();
-                }, 2000);
+                }, 500);
             } else {
                 const error = await response.json();
                 alert('更新失败: ' + (error.error || '未知错误'));

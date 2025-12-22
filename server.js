@@ -649,7 +649,8 @@ app.get('/subscription/:id', (req, res) => {
   
   // Get traffic limit from subscription
   const trafficLimit = subscription.traffic_limit || DEFAULT_TRAFFIC_LIMIT_BYTES;
-  const expireTimestamp = subscription.expires_at ? Math.floor(new Date(subscription.expires_at).getTime() / 1000) : 0;
+  // Set expire timestamp - use far future date if no expiration (year 2099)
+  const expireTimestamp = subscription.expires_at ? Math.floor(new Date(subscription.expires_at).getTime() / 1000) : Math.floor(new Date('2099-12-31').getTime() / 1000);
   
   if (nodeIds.length === 0) {
     // Return empty subscription if no nodes
@@ -657,8 +658,8 @@ app.get('/subscription/:id', (req, res) => {
     const base64Content = Buffer.from(content).toString('base64');
     
     res.set('Content-Type', 'text/plain; charset=utf-8');
-    res.set('Subscription-Userinfo', `upload=0; download=0; total=${trafficLimit}; expire=${expireTimestamp}`);
-    res.set('Profile-Update-Interval', '24');
+    res.set('subscription-userinfo', `upload=0; download=0; total=${trafficLimit}; expire=${expireTimestamp}`);
+    res.set('profile-update-interval', '24');
     res.send(base64Content);
     return;
   }
@@ -680,8 +681,8 @@ app.get('/subscription/:id', (req, res) => {
   const base64Content = Buffer.from(content).toString('base64');
   
   res.set('Content-Type', 'text/plain; charset=utf-8');
-  res.set('Subscription-Userinfo', `upload=0; download=0; total=${trafficLimit}; expire=${expireTimestamp}`);
-  res.set('Profile-Update-Interval', '24');
+  res.set('subscription-userinfo', `upload=0; download=0; total=${trafficLimit}; expire=${expireTimestamp}`);
+  res.set('profile-update-interval', '24');
   res.send(base64Content);
 });
 
