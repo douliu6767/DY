@@ -675,17 +675,16 @@ app.get('/subscription/:id', (req, res) => {
     return;
   }
   
-  // Fetch all nodes in one query, then reorder them according to nodeIds
-  const nodes = db.prepare(`SELECT * FROM nodes WHERE id IN (${nodeIds.map(() => '?').join(',')})`).all(...nodeIds);
-  
-  // Create a map for quick lookup
-  const nodeMap = new Map(nodes.map(node => [node.id, node]));
-  
-  // Reorder nodes according to the nodeIds order
-  const orderedNodes = nodeIds.map(id => nodeMap.get(id)).filter(node => node !== undefined);
+  // Fetch nodes in the correct order using JOIN with subscription_nodes to preserve position order
+  const nodes = db.prepare(`
+    SELECT n.* FROM nodes n
+    INNER JOIN subscription_nodes sn ON n.id = sn.node_id
+    WHERE sn.subscription_id = ?
+    ORDER BY sn.position ASC
+  `).all(req.params.id);
   
   // Generate base64 encoded links
-  const links = orderedNodes.map(node => {
+  const links = nodes.map(node => {
     if (node.type === 'vmess') {
       return generateVmessLink(node);
     } else if (node.type === 'vless') {
