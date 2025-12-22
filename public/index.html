@@ -138,13 +138,42 @@
             font-size: 13px;
             color: #1565C0;
         }
+
+        .password-input-wrapper {
+            position: relative;
+        }
+
+        .password-input-wrapper input {
+            padding-right: 45px;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            font-size: 18px;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .password-toggle:hover {
+            color: #667eea;
+        }
     </style>
 </head>
 <body>
     <div class="login-container">
         <div class="logo">
-            <h1>🚀 订阅管理面板</h1>
-            <p>Subscription Management Panel</p>
+            <h1>🚀 逗留の订阅管理面板</h1>
         </div>
 
         <div id="errorMessage" class="error-message"></div>
@@ -157,7 +186,12 @@
 
             <div class="form-group">
                 <label for="password">密码</label>
-                <input type="password" id="password" name="password" required autocomplete="current-password">
+                <div class="password-input-wrapper">
+                    <input type="password" id="password" name="password" required autocomplete="current-password">
+                    <button type="button" class="password-toggle" onclick="togglePassword()" title="显示/隐藏密码">
+                        <span id="passwordToggleIcon">👁️</span>
+                    </button>
+                </div>
             </div>
 
             <button type="submit" class="login-btn">登录</button>
@@ -167,6 +201,19 @@
     <script>
         const loginForm = document.getElementById('loginForm');
         const errorMessage = document.getElementById('errorMessage');
+
+        function togglePassword() {
+            const passwordInput = document.getElementById('password');
+            const toggleIcon = document.getElementById('passwordToggleIcon');
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.textContent = '🙈';
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.textContent = '👁️';
+            }
+        }
 
         loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -190,7 +237,16 @@
                     localStorage.setItem('username', data.username);
                     window.location.href = '/dashboard.html';
                 } else {
-                    showError(data.error || '登录失败');
+                    // Convert common English error messages to Chinese
+                    let errorMsg = data.error || '登录失败';
+                    if (errorMsg === 'Invalid credentials') {
+                        errorMsg = '用户名或密码错误';
+                    } else if (errorMsg === 'Access denied') {
+                        errorMsg = '访问被拒绝';
+                    } else if (errorMsg === 'Invalid token') {
+                        errorMsg = '无效的令牌';
+                    }
+                    showError(errorMsg);
                 }
             } catch (error) {
                 showError('网络错误，请重试');

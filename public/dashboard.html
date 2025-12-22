@@ -567,10 +567,6 @@
                 <h2 style="margin-top: 30px;">修改密码</h2>
                 <form id="passwordForm" style="max-width: 500px;">
                     <div class="form-group">
-                        <label>当前密码</label>
-                        <input type="password" id="currentPassword" required>
-                    </div>
-                    <div class="form-group">
                         <label>新密码</label>
                         <input type="password" id="newPassword" required minlength="6">
                     </div>
@@ -1301,11 +1297,11 @@
 
             if (response && response.ok) {
                 const result = await response.json();
-                showSuccess('用户名更新成功');
-                localStorage.setItem('username', result.username);
-                document.getElementById('username').textContent = result.username;
-                document.getElementById('currentUsername').value = result.username;
-                document.getElementById('newUsername').value = '';
+                showSuccess('用户名更新成功，即将退出登录...');
+                // Force logout after 2 seconds
+                setTimeout(() => {
+                    logout();
+                }, 2000);
             } else {
                 const error = await response.json();
                 alert('更新失败: ' + (error.error || '未知错误'));
@@ -1315,7 +1311,6 @@
         document.getElementById('passwordForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             
-            const currentPassword = document.getElementById('currentPassword').value;
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             
@@ -1331,12 +1326,15 @@
             
             const response = await apiCall('/api/settings/password', {
                 method: 'PUT',
-                body: JSON.stringify({ currentPassword, newPassword })
+                body: JSON.stringify({ newPassword })
             });
 
             if (response && response.ok) {
-                showSuccess('密码更新成功');
-                document.getElementById('passwordForm').reset();
+                showSuccess('密码更新成功，即将退出登录...');
+                // Force logout after 2 seconds
+                setTimeout(() => {
+                    logout();
+                }, 2000);
             } else {
                 const error = await response.json();
                 alert('更新失败: ' + (error.error || '未知错误'));

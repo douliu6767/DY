@@ -224,13 +224,13 @@ app.post('/api/login', rateLimitLogin, (req, res) => {
   
   if (!user) {
     recordLoginAttempt(req);
-    return res.status(401).json({ error: 'Invalid credentials' });
+    return res.status(401).json({ error: '用户名或密码错误' });
   }
   
   const validPassword = bcrypt.compareSync(password, user.password);
   if (!validPassword) {
     recordLoginAttempt(req);
-    return res.status(401).json({ error: 'Invalid credentials' });
+    return res.status(401).json({ error: '用户名或密码错误' });
   }
   
   // Successful login - clear attempts
@@ -592,44 +592,38 @@ app.get('/api/settings/user', authenticateToken, (req, res) => {
 });
 
 app.put('/api/settings/password', authenticateToken, (req, res) => {
-  const { currentPassword, newPassword } = req.body;
+  const { newPassword } = req.body;
   
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'Current password and new password are required' });
+  if (!newPassword) {
+    return res.status(400).json({ error: '新密码不能为空' });
   }
   
   if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'New password must be at least 6 characters' });
-  }
-  
-  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
-  
-  if (!bcrypt.compareSync(currentPassword, user.password)) {
-    return res.status(401).json({ error: 'Current password is incorrect' });
+    return res.status(400).json({ error: '新密码长度至少为6个字符' });
   }
   
   const hashedPassword = bcrypt.hashSync(newPassword, 10);
   db.prepare('UPDATE users SET password = ? WHERE id = ?').run(hashedPassword, req.user.id);
   
-  res.json({ message: 'Password updated successfully' });
+  res.json({ message: '密码更新成功，请重新登录' });
 });
 
 app.put('/api/settings/username', authenticateToken, (req, res) => {
   const { newUsername } = req.body;
   
   if (!newUsername || newUsername.length < 3) {
-    return res.status(400).json({ error: 'Username must be at least 3 characters' });
+    return res.status(400).json({ error: '用户名长度至少为3个字符' });
   }
   
   // Check if username already exists
   const existingUser = db.prepare('SELECT * FROM users WHERE username = ? AND id != ?').get(newUsername, req.user.id);
   if (existingUser) {
-    return res.status(400).json({ error: 'Username already exists' });
+    return res.status(400).json({ error: '用户名已存在' });
   }
   
   db.prepare('UPDATE users SET username = ? WHERE id = ?').run(newUsername, req.user.id);
   
-  res.json({ message: 'Username updated successfully', username: newUsername });
+  res.json({ message: '用户名更新成功，请重新登录', username: newUsername });
 });
 
 // Generate subscription link content - Updated endpoint
