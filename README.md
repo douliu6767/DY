@@ -44,6 +44,7 @@ docker run -d \
   -p 3000:3000 \
   -v /root/dingyue/data:/app/data \
   --name dy \
+  --restart=always \
   douliu676/dy:20251222-5
 ```
 
