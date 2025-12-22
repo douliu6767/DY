@@ -42,10 +42,9 @@ docker build -t subscription-panel .
 # 运行容器
 docker run -d \
   -p 3000:3000 \
-  -v $(pwd)/data:/app/data \
-  -e JWT_SECRET=your-secret-key \
-  --name subscription-panel \
-  subscription-panel
+  -v /root/dingyue/data:/app/data \
+  --name dy \
+  douliu676/dy:20251222-5
 ```
 
 ### 方式三：传统方式
@@ -123,9 +122,9 @@ chmod +x start.sh
 
 支持的链接格式示例：
 ```
-vmess://ew0KICAidiI6ICIyIiwNCiAgInBzIjogIuaXp+mHkeWxsXRjcCIsDQogICJhZGQiOiAiNjQu5OGI2MzFlMThhMCIsDQogICJhidGNwIiwNCiAgInR5cGUiOiAibm9uZSI0IjogIiIsDQogICJwYXRoIjogIiIsDQogICJ0bHMiOiAibm9uZSIsDQogICJzbmkiOiAiIiwNCiAgImFscG4iOiAiIg0KfQ==
+vmess://ew0KICAidiI6ICIyIiwNCiAgInBzIjogIuaXp+mHkeWxsXRjcCIsDQogICJhZGQiOiAiNjQu5OGI2MzFlMThhMCIsDQogICJhidGNwIiwNCiAgInR5gIiIsDQogICJwYXRoIjogIAibm9uZSIsDQogICJzbmkiOiAiIiwNCiAgImiAiIg0KfQ==
 
-vless://223c327b-9823-434d-c8be-2ebfae82854d@123.123.123.123:12312?type=tcp&security=none#HK
+vless://223c327b-8500-434d-12be-2ebfae82854d@123.123.123.123:12312?type=tcp&security=none#HK
 ```
 
 ### 3. 创建订阅
