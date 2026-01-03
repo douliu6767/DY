@@ -245,6 +245,29 @@ function authenticateToken(req, res, next) {
   });
 }
 
+// Helper function to format nodes for API response
+function formatNodesForResponse(nodes) {
+  return nodes.map(node => ({
+    id: node.id,
+    type: node.type,
+    name: node.name,
+    server: node.server,
+    port: node.port,
+    uuid: node.uuid,
+    alterId: node.alter_id,
+    network: node.network,
+    tls: node.tls,
+    host: node.host,
+    path: node.path,
+    sni: node.sni,
+    headerType: node.header_type,
+    encryption: node.encryption,
+    rawLink: node.raw_link,
+    position: node.position,
+    createdAt: node.created_at
+  }));
+}
+
 // Auth routes
 app.post('/api/login', rateLimitLogin, (req, res) => {
   const { username, password } = req.body;
@@ -291,26 +314,7 @@ function recordLoginAttempt(req) {
 // Node management routes
 app.get('/api/nodes', authenticateToken, (req, res) => {
   const nodes = db.prepare('SELECT * FROM nodes ORDER BY position ASC, created_at ASC').all();
-  // Convert snake_case to camelCase for frontend compatibility
-  const formattedNodes = nodes.map(node => ({
-    id: node.id,
-    type: node.type,
-    name: node.name,
-    server: node.server,
-    port: node.port,
-    uuid: node.uuid,
-    alterId: node.alter_id,
-    network: node.network,
-    tls: node.tls,
-    host: node.host,
-    path: node.path,
-    sni: node.sni,
-    headerType: node.header_type,
-    encryption: node.encryption,
-    rawLink: node.raw_link,
-    position: node.position,
-    createdAt: node.created_at
-  }));
+  const formattedNodes = formatNodesForResponse(nodes);
   res.json(formattedNodes);
 });
 
@@ -354,8 +358,14 @@ app.post('/api/nodes', authenticateToken, (req, res) => {
 app.put('/api/nodes/reorder', authenticateToken, (req, res) => {
   const { nodeId, newPosition } = req.body;
   
-  if (!nodeId || newPosition === undefined || newPosition < 0) {
+  // Validate inputs
+  if (!nodeId || newPosition === undefined || newPosition === null) {
     return res.status(400).json({ error: 'Invalid nodeId or newPosition' });
+  }
+  
+  const newPos = parseInt(newPosition, 10);
+  if (isNaN(newPos) || newPos < 0) {
+    return res.status(400).json({ error: 'newPosition must be a non-negative integer' });
   }
   
   const node = db.prepare('SELECT * FROM nodes WHERE id = ?').get(nodeId);
@@ -367,49 +377,31 @@ app.put('/api/nodes/reorder', authenticateToken, (req, res) => {
   const oldPosition = node.position;
   
   // If position hasn't changed, do nothing
-  if (oldPosition === newPosition) {
+  if (oldPosition === newPos) {
     return res.json({ message: 'Position unchanged' });
   }
   
   // Use a transaction to ensure atomicity
   const transaction = db.transaction(() => {
-    if (newPosition > oldPosition) {
+    if (newPos > oldPosition) {
       // Moving down: decrease position of nodes in between
       db.prepare('UPDATE nodes SET position = position - 1 WHERE position > ? AND position <= ?')
-        .run(oldPosition, newPosition);
+        .run(oldPosition, newPos);
     } else {
       // Moving up: increase position of nodes in between
       db.prepare('UPDATE nodes SET position = position + 1 WHERE position >= ? AND position < ?')
-        .run(newPosition, oldPosition);
+        .run(newPos, oldPosition);
     }
     
     // Update the moved node's position
-    db.prepare('UPDATE nodes SET position = ? WHERE id = ?').run(newPosition, nodeId);
+    db.prepare('UPDATE nodes SET position = ? WHERE id = ?').run(newPos, nodeId);
   });
   
   transaction();
   
   // Return updated nodes list
   const nodes = db.prepare('SELECT * FROM nodes ORDER BY position ASC, created_at ASC').all();
-  const formattedNodes = nodes.map(n => ({
-    id: n.id,
-    type: n.type,
-    name: n.name,
-    server: n.server,
-    port: n.port,
-    uuid: n.uuid,
-    alterId: n.alter_id,
-    network: n.network,
-    tls: n.tls,
-    host: n.host,
-    path: n.path,
-    sni: n.sni,
-    headerType: n.header_type,
-    encryption: n.encryption,
-    rawLink: n.raw_link,
-    position: n.position,
-    createdAt: n.created_at
-  }));
+  const formattedNodes = formatNodesForResponse(nodes);
   
   res.json({ message: 'Nodes reordered successfully', nodes: formattedNodes });
 });
@@ -469,10 +461,14 @@ app.delete('/api/nodes/:id', authenticateToken, (req, res) => {
     return res.status(404).json({ error: 'Node not found' });
   }
   
-  const result = db.prepare('DELETE FROM nodes WHERE id = ?').run(req.params.id);
+  // Use transaction for atomicity
+  const deleteTransaction = db.transaction(() => {
+    db.prepare('DELETE FROM nodes WHERE id = ?').run(req.params.id);
+    // Update positions of remaining nodes
+    db.prepare('UPDATE nodes SET position = position - 1 WHERE position > ?').run(node.position);
+  });
   
-  // Update positions of remaining nodes
-  db.prepare('UPDATE nodes SET position = position - 1 WHERE position > ?').run(node.position);
+  deleteTransaction();
   
   res.json({ message: 'Node deleted successfully' });
 });

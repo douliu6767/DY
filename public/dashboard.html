@@ -494,6 +494,10 @@
         .drag-handle:hover {
             color: #667eea;
         }
+        
+        .node-table-drag-column {
+            width: 60px;
+        }
 
         /* Responsive design for mobile */
         @media (max-width: 768px) {
@@ -852,7 +856,7 @@
                 <table>
                     <thead>
                         <tr>
-                            <th style="width: 60px;">拖动</th>
+                            <th class="node-table-drag-column">拖动</th>
                             <th>序号</th>
                             <th>名称</th>
                             <th>类型</th>
@@ -946,7 +950,7 @@
             
             if (draggedElement !== this) {
                 const draggedNodeId = draggedElement.getAttribute('data-node-id');
-                const targetPosition = parseInt(this.getAttribute('data-position'));
+                const targetPosition = parseInt(this.getAttribute('data-position'), 10);
                 
                 // Call API to reorder
                 await reorderNode(draggedNodeId, targetPosition);
