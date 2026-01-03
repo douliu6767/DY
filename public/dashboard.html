@@ -1140,10 +1140,11 @@
             return new Date(isoString).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
         }
 
-        // Helper function to convert Date to datetime-local format
+        // Helper function to convert Date to datetime-local format in Beijing timezone
         function toDatetimeLocalFormat(date) {
-            return new Date(date.getTime() - date.getTimezoneOffset() * MILLISECONDS_PER_MINUTE)
-                .toISOString().slice(0, 16);
+            // Convert to Beijing time (UTC+8)
+            const beijingDate = new Date(date.getTime() + (8 * 3600000));
+            return beijingDate.toISOString().slice(0, 16);
         }
 
         // Toggle node selection dropdown

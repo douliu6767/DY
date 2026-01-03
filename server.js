@@ -739,10 +739,10 @@ app.get('/subscription/:id', (req, res) => {
     return res.status(404).send('Subscription not found');
   }
   
-  // Check expiration with Beijing time
+  // Check expiration with current time
   if (subscription.expires_at) {
     const expiresAt = new Date(subscription.expires_at);
-    const now = new Date(getBeijingTime());
+    const now = new Date();
     if (expiresAt < now) {
       return res.status(410).send('Subscription expired');
     }
