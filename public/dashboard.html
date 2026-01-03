@@ -785,6 +785,7 @@
         const BYTES_PER_GB = 1073741824; // 1GB in bytes
         const MILLISECONDS_PER_MINUTE = 60000; // Milliseconds in a minute
         const MILLISECONDS_PER_DAY = 86400000; // Milliseconds in a day (24 * 60 * 60 * 1000)
+        const BEIJING_TIMEZONE_OFFSET_MS = 8 * 3600000; // Beijing timezone offset (UTC+8) in milliseconds
 
         // Check authentication
         if (!token) {
@@ -1143,7 +1144,7 @@
         // Helper function to convert Date to datetime-local format in Beijing timezone
         function toDatetimeLocalFormat(date) {
             // Convert to Beijing time (UTC+8)
-            const beijingDate = new Date(date.getTime() + (8 * 3600000));
+            const beijingDate = new Date(date.getTime() + BEIJING_TIMEZONE_OFFSET_MS);
             return beijingDate.toISOString().slice(0, 16);
         }
 
