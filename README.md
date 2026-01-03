@@ -42,7 +42,7 @@ docker build -t subscription-panel .
 # 运行容器
 docker run -d \
   -p 1011:3000 \
-  -v /root/dingyue:/app/data \
+  -v /root/ruanjian/dingyue:/app/data \
   --name dy \
   --restart=always \
   douliu676/dy:20260103
