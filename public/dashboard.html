@@ -463,7 +463,6 @@
         
         /* Drag and drop styles */
         .draggable-row {
-            cursor: move;
             user-select: none;
         }
         
@@ -870,8 +869,8 @@
                         ${allNodes.map((node, index) => {
                             const createdTime = formatBeijingTime(node.createdAt);
                             return `
-                            <tr class="draggable-row" data-node-id="${node.id}" data-position="${index}" draggable="true">
-                                <td><span class="drag-handle">☰</span></td>
+                            <tr class="draggable-row" data-node-id="${node.id}" data-position="${index}">
+                                <td><span class="drag-handle" draggable="true">☰</span></td>
                                 <td>${index + 1}</td>
                                 <td>${node.name}</td>
                                 <td>${node.type.toUpperCase()}</td>
@@ -898,26 +897,37 @@
             const draggableRows = document.querySelectorAll('.draggable-row');
             
             draggableRows.forEach(row => {
-                row.addEventListener('dragstart', handleDragStart);
-                row.addEventListener('dragend', handleDragEnd);
+                // Add drag event listeners to the row for drop target
                 row.addEventListener('dragover', handleDragOver);
                 row.addEventListener('drop', handleDrop);
                 row.addEventListener('dragenter', handleDragEnter);
                 row.addEventListener('dragleave', handleDragLeave);
+                
+                // Add drag event listeners to the drag handle for drag source
+                const dragHandle = row.querySelector('.drag-handle');
+                if (dragHandle) {
+                    dragHandle.addEventListener('dragstart', handleDragStart);
+                    dragHandle.addEventListener('dragend', handleDragEnd);
+                }
             });
         }
         
         let draggedElement = null;
         
         function handleDragStart(e) {
-            draggedElement = this;
-            this.classList.add('dragging');
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/html', this.innerHTML);
+            // Find the parent row when drag handle is clicked
+            draggedElement = this.closest('.draggable-row');
+            if (draggedElement) {
+                draggedElement.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', draggedElement.innerHTML);
+            }
         }
         
         function handleDragEnd(e) {
-            this.classList.remove('dragging');
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+            }
             
             // Remove all drag-over classes
             document.querySelectorAll('.drag-over').forEach(el => {
