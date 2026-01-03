@@ -157,12 +157,13 @@ function initializeDatabase() {
 }
 
 // Helper function to get Beijing time (UTC+8)
-// Returns Beijing time directly as ISO string for storage and display
+// Returns Beijing time as ISO string WITHOUT 'Z' suffix to avoid timezone confusion
 function getBeijingTime() {
   const now = new Date();
   // Get UTC timestamp and add 8 hours for Beijing time
   const beijingTime = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + (8 * 3600000));
-  return beijingTime.toISOString();
+  // Return without 'Z' suffix to indicate it's not UTC
+  return beijingTime.toISOString().slice(0, -1);
 }
 
 // Migrate data from JSON files to SQLite
@@ -744,7 +745,7 @@ app.get('/subscription/:id', (req, res) => {
   
   // Check expiration with Beijing time
   if (subscription.expires_at) {
-    // Both stored time and current time are in Beijing time
+    // Both stored times are Beijing time strings without 'Z'
     const expiresAt = new Date(subscription.expires_at);
     const now = new Date(getBeijingTime());
     if (expiresAt < now) {

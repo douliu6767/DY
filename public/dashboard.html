@@ -1136,25 +1136,20 @@
         }
 
         // Helper function to format Beijing time for display
-        // The stored time is Beijing time in ISO format
-        function formatBeijingTime(isoString) {
-            if (!isoString) return '-';
-            // Parse as Beijing time (the stored format represents Beijing time)
-            const timeValue = isoString.endsWith('Z') ? isoString.slice(0, -1) : isoString;
-            const date = new Date(timeValue);
+        // The stored time is Beijing time WITHOUT 'Z' suffix
+        function formatBeijingTime(timeString) {
+            if (!timeString) return '-';
+            // Parse directly as Beijing time
+            const date = new Date(timeString);
             return date.toLocaleString('zh-CN');
         }
 
         // Helper function to convert Beijing time string to datetime-local format
-        // Converts Beijing time to browser's local time for datetime-local input
+        // The stored time is Beijing time, just format for input
         function toDatetimeLocalFormat(beijingTimeStr) {
-            // Parse Beijing time
-            const timeValue = beijingTimeStr.endsWith('Z') ? beijingTimeStr.slice(0, -1) : beijingTimeStr;
-            const beijingDate = new Date(timeValue);
-            // Convert to browser local time for display in datetime-local input
-            const browserOffset = new Date().getTimezoneOffset();
-            const localDate = new Date(beijingDate.getTime() - BEIJING_TIMEZONE_OFFSET_MS + browserOffset * 60000);
-            return localDate.toISOString().slice(0, 16);
+            if (!beijingTimeStr) return '';
+            // Beijing time string without 'Z', just take first 16 chars
+            return beijingTimeStr.slice(0, 16);
         }
 
         // Toggle node selection dropdown
@@ -1291,17 +1286,13 @@
                 // If days are provided, calculate expiry date from now (Beijing time)
                 const days = parseInt(daysInput);
                 const now = new Date();
-                // Calculate Beijing time: UTC + timezone offset + 8 hours
                 const beijingNow = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + BEIJING_TIMEZONE_OFFSET_MS);
                 const expiryDate = new Date(beijingNow.getTime() + days * MILLISECONDS_PER_DAY);
-                expiresAt = expiryDate.toISOString();
+                // Store without 'Z' suffix
+                expiresAt = expiryDate.toISOString().slice(0, -1);
             } else if (expiresInput) {
-                // datetime-local input is in local browser time, convert to Beijing time
-                const localDate = new Date(expiresInput);
-                // Convert local time to Beijing time
-                const utcTime = localDate.getTime() - localDate.getTimezoneOffset() * 60000;
-                const beijingDate = new Date(utcTime + BEIJING_TIMEZONE_OFFSET_MS);
-                expiresAt = beijingDate.toISOString();
+                // datetime-local input is treated as Beijing time, add seconds and milliseconds
+                expiresAt = expiresInput + ':00.000';
             }
 
             const subscriptionData = {
