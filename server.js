@@ -160,8 +160,8 @@ function initializeDatabase() {
 // Returns Beijing time directly as ISO string for storage and display
 function getBeijingTime() {
   const now = new Date();
-  // Calculate Beijing time by adding 8 hours to UTC
-  const beijingTime = new Date(now.getTime() + (8 * 3600000));
+  // Get UTC timestamp and add 8 hours for Beijing time
+  const beijingTime = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + (8 * 3600000));
   return beijingTime.toISOString();
 }
 
@@ -742,11 +742,11 @@ app.get('/subscription/:id', (req, res) => {
     return res.status(404).send('Subscription not found');
   }
   
-  // Check expiration with current time
+  // Check expiration with Beijing time
   if (subscription.expires_at) {
-    const expiresAt = new Date(subscription.expires_at);
-    const now = new Date();
-    if (expiresAt < now) {
+    const expiresAt = new Date(subscription.expires_at.replace('Z', ''));
+    const nowBeijing = new Date(getBeijingTime().replace('Z', ''));
+    if (expiresAt < nowBeijing) {
       return res.status(410).send('Subscription expired');
     }
   }
