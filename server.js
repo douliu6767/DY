@@ -156,10 +156,13 @@ function initializeDatabase() {
   }
 }
 
-// Helper function to get current time in ISO format (UTC)
-// The frontend will convert this to Beijing time for display
+// Helper function to get Beijing time (UTC+8)
+// Returns Beijing time directly as ISO string for storage and display
 function getBeijingTime() {
-  return new Date().toISOString();
+  const now = new Date();
+  // Calculate Beijing time by adding 8 hours to UTC
+  const beijingTime = new Date(now.getTime() + (8 * 3600000));
+  return beijingTime.toISOString();
 }
 
 // Migrate data from JSON files to SQLite

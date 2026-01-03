@@ -1136,17 +1136,20 @@
         }
 
         // Helper function to format Beijing time for display
+        // Since we store Beijing time directly, just format it nicely
         function formatBeijingTime(isoString) {
             if (!isoString) return '-';
-            return new Date(isoString).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+            // Remove the 'Z' and format as Beijing time
+            const dateStr = isoString.replace('Z', '');
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-CN');
         }
 
-        // Helper function to convert Date to datetime-local format in Beijing timezone
-        // Assumes input date is in UTC (which is the case for all dates from the API)
-        function toDatetimeLocalFormat(date) {
-            // Convert UTC date to Beijing time (UTC+8)
-            const beijingDate = new Date(date.getTime() + BEIJING_TIMEZONE_OFFSET_MS);
-            return beijingDate.toISOString().slice(0, 16);
+        // Helper function to convert Date to datetime-local format
+        // Since we store Beijing time directly, just format for input
+        function toDatetimeLocalFormat(dateStr) {
+            // Remove the 'Z' and format for datetime-local input
+            return dateStr.replace('Z', '').slice(0, 16);
         }
 
         // Toggle node selection dropdown
@@ -1220,9 +1223,8 @@
                 });
                 
                 if (sub.expiresAt) {
-                    const date = new Date(sub.expiresAt);
-                    // Convert to local datetime-local format by adjusting for timezone offset
-                    const localDateTime = toDatetimeLocalFormat(date);
+                    // Convert to datetime-local format (Beijing time stored directly)
+                    const localDateTime = toDatetimeLocalFormat(sub.expiresAt);
                     document.getElementById('subscriptionExpires').value = localDateTime;
                 }
                 
@@ -1281,14 +1283,15 @@
             const expiresInput = document.getElementById('subscriptionExpires').value;
             
             if (daysInput && parseInt(daysInput) > 0) {
-                // If days are provided, calculate expiry date from now
+                // If days are provided, calculate expiry date from now (Beijing time)
                 const days = parseInt(daysInput);
                 const now = new Date();
-                const expiryDate = new Date(now.getTime() + days * MILLISECONDS_PER_DAY);
+                const beijingNow = new Date(now.getTime() + BEIJING_TIMEZONE_OFFSET_MS);
+                const expiryDate = new Date(beijingNow.getTime() + days * MILLISECONDS_PER_DAY);
                 expiresAt = expiryDate.toISOString();
             } else if (expiresInput) {
-                // Otherwise use the datetime-local input
-                expiresAt = new Date(expiresInput).toISOString();
+                // Otherwise use the datetime-local input (add 'Z' to indicate it's Beijing time)
+                expiresAt = expiresInput + ':00.000Z';
             }
 
             const subscriptionData = {
