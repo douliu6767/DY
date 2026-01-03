@@ -1142,8 +1142,9 @@
         }
 
         // Helper function to convert Date to datetime-local format in Beijing timezone
+        // Assumes input date is in UTC (which is the case for all dates from the API)
         function toDatetimeLocalFormat(date) {
-            // Convert to Beijing time (UTC+8)
+            // Convert UTC date to Beijing time (UTC+8)
             const beijingDate = new Date(date.getTime() + BEIJING_TIMEZONE_OFFSET_MS);
             return beijingDate.toISOString().slice(0, 16);
         }
