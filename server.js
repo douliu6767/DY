@@ -84,6 +84,7 @@ function initializeDatabase() {
       header_type TEXT,
       encryption TEXT,
       raw_link TEXT,
+      position INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL
     );
     
@@ -118,6 +119,22 @@ function initializeDatabase() {
   // Add position column to subscription_nodes if it doesn't exist (for database migration)
   try {
     db.exec(`ALTER TABLE subscription_nodes ADD COLUMN position INTEGER NOT NULL DEFAULT 0`);
+  } catch (error) {
+    // Column already exists or other migration issue - check if it's the expected error
+    if (!error.message.includes('duplicate column name')) {
+      console.warn('Database migration warning:', error.message);
+    }
+  }
+  
+  // Add position column to nodes if it doesn't exist (for database migration)
+  try {
+    db.exec(`ALTER TABLE nodes ADD COLUMN position INTEGER NOT NULL DEFAULT 0`);
+    // Initialize positions for existing nodes based on created_at
+    const existingNodes = db.prepare('SELECT id FROM nodes ORDER BY created_at ASC').all();
+    const updatePosition = db.prepare('UPDATE nodes SET position = ? WHERE id = ?');
+    existingNodes.forEach((node, index) => {
+      updatePosition.run(index, node.id);
+    });
   } catch (error) {
     // Column already exists or other migration issue - check if it's the expected error
     if (!error.message.includes('duplicate column name')) {
@@ -169,14 +186,15 @@ function migrateFromJSON() {
     try {
       const nodes = JSON.parse(fs.readFileSync(NODES_FILE, 'utf8'));
       const insertNode = db.prepare(`INSERT OR IGNORE INTO nodes 
-        (id, type, name, server, port, uuid, alter_id, network, tls, host, path, sni, header_type, encryption, raw_link, created_at) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-      for (const node of nodes) {
+        (id, type, name, server, port, uuid, alter_id, network, tls, host, path, sni, header_type, encryption, raw_link, position, created_at) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
         insertNode.run(
           node.id, node.type, node.name, node.server, node.port, node.uuid,
           node.alterId || 0, node.network || 'tcp', node.tls || 'none',
           node.host || null, node.path || null, node.sni || null,
-          node.headerType || null, node.encryption || null, node.rawLink || null, node.createdAt || getBeijingTime()
+          node.headerType || null, node.encryption || null, node.rawLink || null, i, node.createdAt || getBeijingTime()
         );
       }
       fs.renameSync(NODES_FILE, NODES_FILE + '.migrated');
@@ -272,7 +290,7 @@ function recordLoginAttempt(req) {
 
 // Node management routes
 app.get('/api/nodes', authenticateToken, (req, res) => {
-  const nodes = db.prepare('SELECT * FROM nodes ORDER BY created_at ASC').all();
+  const nodes = db.prepare('SELECT * FROM nodes ORDER BY position ASC, created_at ASC').all();
   // Convert snake_case to camelCase for frontend compatibility
   const formattedNodes = nodes.map(node => ({
     id: node.id,
@@ -290,12 +308,17 @@ app.get('/api/nodes', authenticateToken, (req, res) => {
     headerType: node.header_type,
     encryption: node.encryption,
     rawLink: node.raw_link,
+    position: node.position,
     createdAt: node.created_at
   }));
   res.json(formattedNodes);
 });
 
 app.post('/api/nodes', authenticateToken, (req, res) => {
+  // Get the max position and assign next position
+  const maxPositionRow = db.prepare('SELECT MAX(position) as maxPos FROM nodes').get();
+  const nextPosition = (maxPositionRow.maxPos !== null ? maxPositionRow.maxPos : -1) + 1;
+  
   const newNode = {
     id: uuidv4(),
     type: req.body.type,
@@ -312,18 +335,83 @@ app.post('/api/nodes', authenticateToken, (req, res) => {
     headerType: req.body.headerType || null,
     encryption: req.body.encryption || null,
     rawLink: req.body.rawLink || null,
+    position: nextPosition,
     createdAt: getBeijingTime()
   };
   
   db.prepare(`INSERT INTO nodes 
-    (id, type, name, server, port, uuid, alter_id, network, tls, host, path, sni, header_type, encryption, raw_link, created_at) 
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    (id, type, name, server, port, uuid, alter_id, network, tls, host, path, sni, header_type, encryption, raw_link, position, created_at) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
     newNode.id, newNode.type, newNode.name, newNode.server, newNode.port, newNode.uuid,
     newNode.alterId, newNode.network, newNode.tls, newNode.host, newNode.path, newNode.sni,
-    newNode.headerType, newNode.encryption, newNode.rawLink, newNode.createdAt
+    newNode.headerType, newNode.encryption, newNode.rawLink, newNode.position, newNode.createdAt
   );
   
   res.status(201).json(newNode);
+});
+
+// Reorder nodes endpoint - must be before /api/nodes/:id
+app.put('/api/nodes/reorder', authenticateToken, (req, res) => {
+  const { nodeId, newPosition } = req.body;
+  
+  if (!nodeId || newPosition === undefined || newPosition < 0) {
+    return res.status(400).json({ error: 'Invalid nodeId or newPosition' });
+  }
+  
+  const node = db.prepare('SELECT * FROM nodes WHERE id = ?').get(nodeId);
+  
+  if (!node) {
+    return res.status(404).json({ error: 'Node not found' });
+  }
+  
+  const oldPosition = node.position;
+  
+  // If position hasn't changed, do nothing
+  if (oldPosition === newPosition) {
+    return res.json({ message: 'Position unchanged' });
+  }
+  
+  // Use a transaction to ensure atomicity
+  const transaction = db.transaction(() => {
+    if (newPosition > oldPosition) {
+      // Moving down: decrease position of nodes in between
+      db.prepare('UPDATE nodes SET position = position - 1 WHERE position > ? AND position <= ?')
+        .run(oldPosition, newPosition);
+    } else {
+      // Moving up: increase position of nodes in between
+      db.prepare('UPDATE nodes SET position = position + 1 WHERE position >= ? AND position < ?')
+        .run(newPosition, oldPosition);
+    }
+    
+    // Update the moved node's position
+    db.prepare('UPDATE nodes SET position = ? WHERE id = ?').run(newPosition, nodeId);
+  });
+  
+  transaction();
+  
+  // Return updated nodes list
+  const nodes = db.prepare('SELECT * FROM nodes ORDER BY position ASC, created_at ASC').all();
+  const formattedNodes = nodes.map(n => ({
+    id: n.id,
+    type: n.type,
+    name: n.name,
+    server: n.server,
+    port: n.port,
+    uuid: n.uuid,
+    alterId: n.alter_id,
+    network: n.network,
+    tls: n.tls,
+    host: n.host,
+    path: n.path,
+    sni: n.sni,
+    headerType: n.header_type,
+    encryption: n.encryption,
+    rawLink: n.raw_link,
+    position: n.position,
+    createdAt: n.created_at
+  }));
+  
+  res.json({ message: 'Nodes reordered successfully', nodes: formattedNodes });
 });
 
 app.put('/api/nodes/:id', authenticateToken, (req, res) => {
@@ -369,16 +457,22 @@ app.put('/api/nodes/:id', authenticateToken, (req, res) => {
     sni: updatedNode.sni,
     headerType: updatedNode.header_type,
     encryption: updatedNode.encryption,
+    position: updatedNode.position,
     createdAt: updatedNode.created_at
   });
 });
 
 app.delete('/api/nodes/:id', authenticateToken, (req, res) => {
-  const result = db.prepare('DELETE FROM nodes WHERE id = ?').run(req.params.id);
+  const node = db.prepare('SELECT position FROM nodes WHERE id = ?').get(req.params.id);
   
-  if (result.changes === 0) {
+  if (!node) {
     return res.status(404).json({ error: 'Node not found' });
   }
+  
+  const result = db.prepare('DELETE FROM nodes WHERE id = ?').run(req.params.id);
+  
+  // Update positions of remaining nodes
+  db.prepare('UPDATE nodes SET position = position - 1 WHERE position > ?').run(node.position);
   
   res.json({ message: 'Node deleted successfully' });
 });
@@ -402,20 +496,25 @@ app.post('/api/nodes/import', authenticateToken, (req, res) => {
       return res.status(400).json({ error: 'Unsupported protocol. Only vmess:// and vless:// are supported.' });
     }
     
+    // Get the max position and assign next position
+    const maxPositionRow = db.prepare('SELECT MAX(position) as maxPos FROM nodes').get();
+    const nextPosition = (maxPositionRow.maxPos !== null ? maxPositionRow.maxPos : -1) + 1;
+    
     const newNode = {
       id: uuidv4(),
       ...nodeData,
       rawLink: link,
+      position: nextPosition,
       createdAt: getBeijingTime()
     };
     
     db.prepare(`INSERT INTO nodes 
-      (id, type, name, server, port, uuid, alter_id, network, tls, host, path, sni, header_type, encryption, raw_link, created_at) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      (id, type, name, server, port, uuid, alter_id, network, tls, host, path, sni, header_type, encryption, raw_link, position, created_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
       newNode.id, newNode.type, newNode.name, newNode.server, newNode.port, newNode.uuid,
       newNode.alterId || 0, newNode.network || 'tcp', newNode.tls || 'none',
       newNode.host || null, newNode.path || null, newNode.sni || null,
-      newNode.headerType || null, newNode.encryption || null, newNode.rawLink, newNode.createdAt
+      newNode.headerType || null, newNode.encryption || null, newNode.rawLink, newNode.position, newNode.createdAt
     );
     
     res.status(201).json({
@@ -434,6 +533,7 @@ app.post('/api/nodes/import', authenticateToken, (req, res) => {
       headerType: newNode.headerType,
       encryption: newNode.encryption,
       rawLink: newNode.rawLink,
+      position: newNode.position,
       createdAt: newNode.createdAt
     });
   } catch (error) {

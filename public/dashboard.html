@@ -460,6 +460,40 @@
             color: #999;
             font-size: 12px;
         }
+        
+        /* Drag and drop styles */
+        .draggable-row {
+            cursor: move;
+            user-select: none;
+        }
+        
+        .dragging {
+            opacity: 0.5;
+            background-color: #f0f0f0;
+        }
+        
+        .drag-over {
+            border-top: 3px solid #667eea;
+        }
+        
+        .drag-handle {
+            cursor: grab;
+            padding: 5px;
+            color: #999;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+        }
+        
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        
+        .drag-handle:hover {
+            color: #667eea;
+        }
 
         /* Responsive design for mobile */
         @media (max-width: 768px) {
@@ -818,6 +852,7 @@
                 <table>
                     <thead>
                         <tr>
+                            <th style="width: 60px;">拖动</th>
                             <th>序号</th>
                             <th>名称</th>
                             <th>类型</th>
@@ -827,11 +862,12 @@
                             <th>操作</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="nodesTableBody">
                         ${allNodes.map((node, index) => {
                             const createdTime = formatBeijingTime(node.createdAt);
                             return `
-                            <tr>
+                            <tr class="draggable-row" data-node-id="${node.id}" data-position="${index}" draggable="true">
+                                <td><span class="drag-handle">☰</span></td>
                                 <td>${index + 1}</td>
                                 <td>${node.name}</td>
                                 <td>${node.type.toUpperCase()}</td>
@@ -848,6 +884,92 @@
                 </table>
             `;
             container.innerHTML = html;
+            
+            // Add drag and drop event listeners
+            initializeDragAndDrop();
+        }
+        
+        // Initialize drag and drop functionality
+        function initializeDragAndDrop() {
+            const draggableRows = document.querySelectorAll('.draggable-row');
+            
+            draggableRows.forEach(row => {
+                row.addEventListener('dragstart', handleDragStart);
+                row.addEventListener('dragend', handleDragEnd);
+                row.addEventListener('dragover', handleDragOver);
+                row.addEventListener('drop', handleDrop);
+                row.addEventListener('dragenter', handleDragEnter);
+                row.addEventListener('dragleave', handleDragLeave);
+            });
+        }
+        
+        let draggedElement = null;
+        
+        function handleDragStart(e) {
+            draggedElement = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.innerHTML);
+        }
+        
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            
+            // Remove all drag-over classes
+            document.querySelectorAll('.drag-over').forEach(el => {
+                el.classList.remove('drag-over');
+            });
+        }
+        
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+        
+        function handleDragEnter(e) {
+            if (this !== draggedElement) {
+                this.classList.add('drag-over');
+            }
+        }
+        
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+        
+        async function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            if (draggedElement !== this) {
+                const draggedNodeId = draggedElement.getAttribute('data-node-id');
+                const targetPosition = parseInt(this.getAttribute('data-position'));
+                
+                // Call API to reorder
+                await reorderNode(draggedNodeId, targetPosition);
+            }
+            
+            return false;
+        }
+        
+        // Reorder node via API
+        async function reorderNode(nodeId, newPosition) {
+            const response = await apiCall('/api/nodes/reorder', {
+                method: 'PUT',
+                body: JSON.stringify({ nodeId, newPosition })
+            });
+            
+            if (response && response.ok) {
+                const result = await response.json();
+                allNodes = result.nodes;
+                renderNodesTable();
+                showSuccess('节点顺序已更新');
+            } else {
+                showError('更新节点顺序失败');
+            }
         }
 
         // Open node modal
