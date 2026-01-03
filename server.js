@@ -744,9 +744,10 @@ app.get('/subscription/:id', (req, res) => {
   
   // Check expiration with Beijing time
   if (subscription.expires_at) {
-    const expiresAt = new Date(subscription.expires_at.replace('Z', ''));
-    const nowBeijing = new Date(getBeijingTime().replace('Z', ''));
-    if (expiresAt < nowBeijing) {
+    // Both stored time and current time are in Beijing time
+    const expiresAt = new Date(subscription.expires_at);
+    const now = new Date(getBeijingTime());
+    if (expiresAt < now) {
       return res.status(410).send('Subscription expired');
     }
   }

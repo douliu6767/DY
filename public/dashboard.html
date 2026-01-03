@@ -1136,22 +1136,24 @@
         }
 
         // Helper function to format Beijing time for display
-        // Since we store Beijing time directly, just format it nicely
+        // The stored time is Beijing time in ISO format
         function formatBeijingTime(isoString) {
             if (!isoString) return '-';
-            // Remove the 'Z' and format as Beijing time
-            const dateStr = isoString.replace('Z', '');
-            const date = new Date(dateStr);
+            // Parse as Beijing time (the stored format represents Beijing time)
+            const timeValue = isoString.endsWith('Z') ? isoString.slice(0, -1) : isoString;
+            const date = new Date(timeValue);
             return date.toLocaleString('zh-CN');
         }
 
         // Helper function to convert Beijing time string to datetime-local format
         // Converts Beijing time to browser's local time for datetime-local input
         function toDatetimeLocalFormat(beijingTimeStr) {
-            // Parse Beijing time (remove 'Z' as it's actually Beijing time, not UTC)
-            const beijingDate = new Date(beijingTimeStr.replace('Z', ''));
-            // Convert to browser local time
-            const localDate = new Date(beijingDate.getTime() - BEIJING_TIMEZONE_OFFSET_MS + new Date().getTimezoneOffset() * 60000);
+            // Parse Beijing time
+            const timeValue = beijingTimeStr.endsWith('Z') ? beijingTimeStr.slice(0, -1) : beijingTimeStr;
+            const beijingDate = new Date(timeValue);
+            // Convert to browser local time for display in datetime-local input
+            const browserOffset = new Date().getTimezoneOffset();
+            const localDate = new Date(beijingDate.getTime() - BEIJING_TIMEZONE_OFFSET_MS + browserOffset * 60000);
             return localDate.toISOString().slice(0, 16);
         }
 
