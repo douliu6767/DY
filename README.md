@@ -1,4 +1,4 @@
-# 订阅管理面板 (Subscription Management Panel)
+# 节点订阅管理面板
 
 一个类似 Xboard 的订阅链接管理面板，用于管理 VMess、VLess 等代理节点信息。
 
